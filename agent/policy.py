@@ -61,6 +61,7 @@ def check_proposal(
     expected_cost: float,
     purpose: str,
     source: str,
+    record_velocity: bool = True,
 ) -> PolicyResult:
     """Return ok=False with logged reasons if any rule is violated."""
     reasons: list[str] = []
@@ -131,8 +132,9 @@ def check_proposal(
             logger.warning("POLICY BLOCK agent=%s buyer=%s: %s", config.agent_id, buyer, r)
         return PolicyResult(ok=False, reasons=reasons)
 
-    stamps.append(now)
-    _VELOCITY[config.agent_id] = stamps
+    if record_velocity:
+        stamps.append(now)
+        _VELOCITY[config.agent_id] = stamps
     logger.info(
         "POLICY OK agent=%s seller=%s amount=%.4f purpose=%r",
         config.agent_id,
