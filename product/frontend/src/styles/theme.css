@@ -148,3 +148,48 @@ mark.injected, .injected { background: var(--bad); color: #000; padding: 0 3px; 
 .step-key .step-num { background: #000; color: var(--lime); }
 .hero h1 { max-width: none; }
 .hero-accent { white-space: nowrap; }
+
+/* ==========================================================================
+   Leftovers from the light theme, fixed for dark (navy blocks, teal, edges)
+   ========================================================================== */
+:root {
+  --navy-grad: linear-gradient(135deg, rgba(210, 255, 57, 0.10) 0%, rgba(18, 20, 24, 0.75) 55%);
+  --nvda: var(--lime);
+  --usdc: #7d8796;
+  --navy: var(--text);
+}
+/* Specialists "can spend" banner: dark glass with a lime edge instead of navy */
+.treasury-banner { background: var(--navy-grad); border: 1px solid rgba(210, 255, 57, 0.35); color: var(--text); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: var(--radius); }
+.treasury-banner::after { background-image: radial-gradient(rgba(210, 255, 57, 0.10) 1px, transparent 1px); }
+.tb-label, .tb-sub, .tb-asset .muted { color: var(--text-2); }
+.tb-amount { font-family: var(--display); font-weight: 800; letter-spacing: -0.05em; }
+.dot-usdc, .treasury-banner .dot-usdc { background: var(--usdc); }
+.dot-eth, .dot-nvdac { background: var(--lime); }
+.seg-usdc { background: var(--usdc); }
+.seg-eth, .seg-nvdac { background: var(--lime); }
+/* Landing closing block: lime-on-black instead of navy */
+.l-final { background: linear-gradient(180deg, rgba(210, 255, 57, 0.08), rgba(18, 20, 24, 0.85)); border: 1px solid rgba(210, 255, 57, 0.3); border-radius: var(--radius); }
+.l-final h2 { font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: -0.05em; font-size: clamp(32px, 5vw, 64px); color: var(--text); }
+.l-final::before { background-image: radial-gradient(rgba(210, 255, 57, 0.10) 1px, transparent 1px); }
+/* Hero dot pattern: grey dots that fade out, no hard edge */
+.hero::before {
+  background-image: radial-gradient(rgba(160, 165, 177, 0.10) 1px, transparent 1px);
+  mask-image: radial-gradient(ellipse 55% 50% at 70% 35%, #000 0%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 55% 50% at 70% 35%, #000 0%, transparent 75%);
+}
+/* "Why the agent wants this" label matches the other labels */
+.reason-label { font-family: var(--mono-f); text-transform: uppercase; letter-spacing: 0.12em; font-size: 11px; font-weight: 500; color: var(--text-3); }
+.reason::before { background: var(--lime); }
+.flow-pay { background: var(--good-bg); border-color: rgba(210, 255, 57, 0.5); }
+/* Sub-tabs in the dark theme */
+.subtab { font-family: var(--mono-f); text-transform: uppercase; letter-spacing: 0.1em; font-size: 11px; }
+.subtab.active { background: var(--lime); color: #000; }
+.chip-btn { font-family: var(--mono-f); text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
+/* Phones: the top bar grows instead of covering the page title */
+@media (max-width: 1000px) {
+  .topbar { height: auto; padding-top: 10px; padding-bottom: 6px; }
+}
+/* Hero headline: second line stays on one line on desktop but must fit; wraps on phones */
+.hero { max-width: none; }
+.hero h1 { font-size: clamp(36px, min(4.5vw, 8.5vh), 80px); }
+@media (max-width: 760px) { .hero-accent { white-space: normal; } }

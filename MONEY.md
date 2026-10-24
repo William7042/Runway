@@ -105,3 +105,13 @@ The human authorized a $1 transfer-fee budget and removal of the old blanket hol
 Payment proposals treat `amount_usd` as the seller invoice and show the gross transfer amount in `path`, the fee in `expected_cost`, and seller net/fee/total debit in approval flags. Gross-up is derived from simulation, not a hardcoded deduction. Lower fees reduce the gross debit; fees above $1 or changed recipient net require a fresh plan. Approval still precedes every signature. Invoice caps remain separate from the authorized fee allowance. Existing swap slippage/fee checks remain active.
 
 `RUNWAY_PAYMENT_FEE_USD=1` controls the disclosed transfer allowance. The live agent checks that allowance separately from swap price impact, using the deterministic router plan rather than language-model text. The shared proposal fields and original payment interface are unchanged.
+
+## Live wallet refresh
+
+Run the queue from the repository root with `PYTHONPATH=. RUNWAY_BALANCE_SYNC=1 STUB_EXECUTOR=0 .venv/bin/uvicorn app:app --app-dir product/queue_service --port 8000`.
+The money-layer snapshot worker reads configured signer users every five seconds
+and updates the queue balance snapshots; it never quotes, signs, or sends funds.
+The dashboard polls those snapshots every 1.5 seconds. Errors preserve the last
+known balances and timestamps instead of replacing them with zeros. The header
+and specialist treasury choose buyer `test` (`VITE_BUYER_ID` overrides it), with
+unknown nonstable valuations labeled as excluded from the priced subtotal.

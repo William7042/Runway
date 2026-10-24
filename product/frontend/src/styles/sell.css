@@ -1,0 +1,21 @@
+/* Sell tab: your agent's services, paid orders, earnings. */
+.sell-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 32px; align-items: start; }
+@media (max-width: 1000px) { .sell-layout { grid-template-columns: 1fr; } }
+.listing { gap: 14px; }
+.listing-top { display: flex; gap: 16px; align-items: flex-start; }
+.listing h3 { font-size: var(--fs-title); font-weight: 600; }
+.listing-sub { font-size: var(--fs-label); color: var(--text-3); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.listing-price { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+.listing-unit { font-size: var(--fs-label); color: var(--text-3); margin-top: 4px; }
+.listing-cap { color: var(--text-2); }
+.listing-rep { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; font-size: var(--fs-small); color: var(--text-2); border-top: 1px solid var(--border); padding-top: 12px; }
+.listing-rep .btn { margin-left: auto; }
+.jobs { display: flex; flex-direction: column; gap: 10px; }
+.job { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.job-top { display: flex; gap: 12px; align-items: flex-start; }
+.job-title { font-weight: 600; font-size: var(--fs-small); }
+.job-sub { font-size: var(--fs-label); color: var(--text-3); }
+.job-amt { font-weight: 700; margin-bottom: 4px; }
+.job-result { font-size: var(--fs-small); color: var(--text-2); background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
+.token-box { margin-top: 12px; border: 1px solid var(--mint); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--good-bg); }
+.token-box input { font-family: var(--mono-f, monospace); font-size: 12px; }

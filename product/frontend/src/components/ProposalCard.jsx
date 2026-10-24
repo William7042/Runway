@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { usd, amt, parseFlag, costTotal, driftPct, sourceInfo, SOURCE_LABEL, ago } from "../format.js";
-import { DriftBar } from "./DriftGauge.jsx";
+import { usd, amt, parseFlag, costTotal, sourceInfo, SOURCE_LABEL, ago } from "../format.js";
 import "../styles/desk.css";
 
 export const titleOf = (p) => p.title || `Pay ${p.seller}`;
@@ -21,8 +20,6 @@ export function Flags({ flags }) {
     </div>
   );
 }
-
-const isDriftAsset = (asset) => ["SOL", "BTC", "ETH"].includes(asset);
 
 /** Wallet → (sell) → pay → seller, drawn as a row of nodes. */
 function PaymentFlow({ p }) {
@@ -57,12 +54,6 @@ export default function ProposalCard({ p, config, onDecide, position, total }) {
   const [err, setErr] = useState("");
 
   const cost = costTotal(p.expected_cost);
-  const d = driftPct(p.drift);
-  const live = config?.drift_pct;
-  const threshold = config?.drift_threshold_pct ?? 2;
-  const sellsDriftAsset = (p.path || []).some((s) => s.type === "swap" && isDriftAsset(s.asset));
-  const driftAsset = ((p.path || []).find((s) => s.type === "swap" && isDriftAsset(s.asset)) || {}).asset || "ETH";
-  const driftDanger = sellsDriftAsset && live !== undefined && live > threshold;
   const src = sourceInfo(p.source);
   const why = p.rationale || p.purpose;
 
@@ -98,14 +89,7 @@ export default function ProposalCard({ p, config, onDecide, position, total }) {
       </div>
 
       <Flags flags={p.flags} />
-      {driftDanger && (
-        <div className="flag flag-block">
-          <span className="flag-label">Price drift {live.toFixed(1)}%</span>
-          <span>
-            The simulated {driftAsset} quote is too far from its reference price. Review the route before selling.
-          </span>
-        </div>
-      )}
+
 
       <PaymentFlow p={p} />
 
@@ -120,12 +104,6 @@ export default function ProposalCard({ p, config, onDecide, position, total }) {
           <span className="fact-label">Fees and price impact</span>
           <span className="fact-value num">{usd(cost, 4)}</span>
         </div>
-        {d !== null && (
-          <div className="fact-drift">
-            <span className="fact-label">Price drift</span>
-            <DriftBar value={d} threshold={threshold} />
-          </div>
-        )}
         <div>
           <span className="fact-label">Triggered by</span>
           <span className={`fact-value ${src.kind === "fetched_page" ? "danger" : ""}`}>{SOURCE_LABEL[src.kind] || src.kind}</span>
