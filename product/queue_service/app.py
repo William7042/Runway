@@ -299,12 +299,31 @@ def _seller_key(seller: str) -> str:
     return str(seller).split(" ")[0]
 
 
+# Agent-layer ids → seeded desk wallets so stub fills animate the UI.
+_BUYER_ALIASES = {
+    "wallet_research_desk": "research-agent",
+}
+_SELLER_ALIASES = {
+    "wallet_sim_filings": "filings-agent",
+    "wallet_sim_archive": "premium-archive",
+    "wallet_sim_sec_analyst": "x-sentiment",
+    "escrow_board": "bounty-escrow-001",
+}
+
+
+def _resolve_wallet(bal: dict, key: str | None, aliases: dict[str, str]):
+    if not key:
+        return None
+    return bal.get(key) or bal.get(aliases.get(key, ""))
+
+
 def _apply_simulated_balances(s: dict, p: dict) -> None:
     """Stub mode only: move SIMULATED wallet balances so the demo shows money moving.
     Never touches a wallet Person A has marked as real (simulated: false)."""
     bal = s["balances"]
-    buyer = bal.get(p.get("buyer"))
-    seller = bal.get(_seller_key(p.get("seller", "")))
+    buyer = _resolve_wallet(bal, p.get("buyer"), _BUYER_ALIASES)
+    seller_id = _seller_key(p.get("seller", ""))
+    seller = _resolve_wallet(bal, seller_id, _SELLER_ALIASES)
 
     def asset_row(w, asset):
         for a in w.setdefault("assets", []):

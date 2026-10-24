@@ -51,7 +51,7 @@ def main() -> int:
         amount_usd=5.0,
         seller="0xEVIL",
         path_summary="transfer:USDC:5",
-        buyer="wallet_research_desk",
+        buyer="research-agent",
     )
     assert v.is_mismatch, v
     print("verifier mismatch:", v.reason)

@@ -67,6 +67,7 @@
 .alloc { display: flex; height: 6px; border-radius: 99px; overflow: hidden; gap: 2px; }
 .alloc-seg { background: var(--text-3); }
 .seg-nvdac { background: var(--nvda); }
+.seg-eth { background: var(--nvda); }
 .seg-usdc { background: var(--usdc); }
 .holdings { width: 100%; border-collapse: collapse; font-size: var(--fs-small); }
 .holdings td { padding: 3px 0; color: var(--text-2); }

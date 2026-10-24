@@ -24,7 +24,8 @@ from agent.verifier import VerifierResult
 
 logger = logging.getLogger("runway.research")
 
-BUYER_WALLET = "wallet_research_desk"
+# Must match product seed balances key so stub fills debit the desk wallet UI.
+BUYER_WALLET = "research-agent"
 
 PLAN_SYSTEM = """You are a research desk agent with a small crypto/tokenized-stock treasury.
 The user asks a diligence question. Plan which PAID inputs you need.

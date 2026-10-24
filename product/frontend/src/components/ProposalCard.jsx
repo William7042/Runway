@@ -22,8 +22,12 @@ export function Flags({ flags }) {
   );
 }
 
-// Tokenized stocks use a lowercase "c" suffix, e.g. NVDAc, TSLAc.
-const isTokenized = (asset) => /^[A-Z]+c$/.test(asset || "");
+const STABLES = new Set(["USDC", "PYUSD", "USD"]);
+// Drift applies when selling the portfolio asset (ETH in the demo; tokenized *c if present).
+const isDriftAsset = (asset) => {
+  if (!asset || STABLES.has(asset)) return false;
+  return asset === "ETH" || /^[A-Z]+c$/.test(asset);
+};
 
 /** Wallet → (sell) → pay → seller, drawn as a row of nodes. */
 function PaymentFlow({ p }) {
@@ -61,8 +65,9 @@ export default function ProposalCard({ p, config, onDecide, position, total }) {
   const d = driftPct(p.drift);
   const live = config?.drift_pct;
   const threshold = config?.drift_threshold_pct ?? 2;
-  const sellsStock = (p.path || []).some((s) => s.type === "swap" && isTokenized(s.asset));
-  const driftDanger = sellsStock && live !== undefined && live > threshold;
+  const sellsDriftAsset = (p.path || []).some((s) => s.type === "swap" && isDriftAsset(s.asset));
+  const driftAsset = ((p.path || []).find((s) => s.type === "swap" && isDriftAsset(s.asset)) || {}).asset || "ETH";
+  const driftDanger = sellsDriftAsset && live !== undefined && live > threshold;
   const src = sourceInfo(p.source);
   const why = p.rationale || p.purpose;
 
@@ -101,7 +106,10 @@ export default function ProposalCard({ p, config, onDecide, position, total }) {
       {driftDanger && (
         <div className="flag flag-block">
           <span className="flag-label">Price drift {live.toFixed(1)}%</span>
-          <span>NVDAc is trading too far from the real Nvidia price. The router will refuse to sell at this gap.</span>
+          <span>
+            {driftAsset} is trading too far from the reference price. The router will refuse to sell at this gap and
+            pay from stablecoin instead.
+          </span>
         </div>
       )}
 
