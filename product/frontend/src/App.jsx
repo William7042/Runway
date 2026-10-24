@@ -10,6 +10,7 @@ import Landing from "./components/Landing.jsx";
 import DemoControls from "./components/DemoControls.jsx";
 import TwoAgents from "./components/TwoAgents.jsx";
 import Backdrop from "./components/Backdrop.jsx";
+import Ticker from "./components/Ticker.jsx";
 import Balances from "./components/Balances.jsx";
 import ReceiptsFeed from "./components/Receipts.jsx";
 import VoiceDesk from "./components/VoiceDesk.jsx";
@@ -158,6 +159,7 @@ export default function App() {
           </span>
         </div>
       </header>
+      <Ticker api={api} proposals={state.proposals} refreshKey={tick} />
 
       {!online && route !== "home" && (
         <div className="offline">

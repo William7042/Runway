@@ -1,0 +1,25 @@
+/* Live activity ticker under the top bar. Uses the theme's colors and mono font. */
+.ticker {
+  height: 36px; display: flex; align-items: center; overflow: hidden; position: relative; z-index: 4;
+  background: rgba(12, 14, 17, 0.85); border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+}
+.ticker-track { display: flex; width: max-content; animation: ticker-left 40s linear infinite; }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+.ticker-run, .ticker-static { display: flex; }
+.ticker-static { padding-left: 40px; }
+.ticker-item {
+  display: inline-flex; align-items: center; gap: 8px; padding: 0 28px; white-space: nowrap;
+  font-family: var(--mono-f, "IBM Plex Mono", ui-monospace, monospace); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.ticker-item i { width: 6px; height: 6px; border-radius: 99px; background: currentColor; flex-shrink: 0; }
+.ticker-item.good { color: var(--lime, #d2ff39); }
+.ticker-item.bad { color: var(--bad, #ff4d3d); }
+.ticker-item.warn { color: var(--warn, #f3b562); }
+.ticker-item.muted { color: var(--text-2, #a0a5b1); }
+@keyframes ticker-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { animation: none; }
+}
