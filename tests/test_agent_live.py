@@ -36,7 +36,7 @@ def test_live_agent_blocks_actual_asset_not_in_policy(setup, monkeypatch):
     router, _, queue = setup
     monkeypatch.setenv('RUNWAY_MODE', 'live')
     monkeypatch.setattr('runway_money.agent_adapter.get_router', lambda: router)
-    policy = PolicyConfig(agent_id='blocked-real-asset', asset_allowlist={'USDC','NVDAc'})
+    policy = PolicyConfig(agent_id='blocked-real-asset', asset_allowlist={'USDC','ETH'})
     p, result, verifier = propose_and_enqueue(buyer='buyer', seller='seller', amount_usd=1,
         purpose='Buy data', source='user message', user_request='Buy data', policy=policy,
         queue=object())

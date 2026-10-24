@@ -28,7 +28,7 @@ const STEPS = [
 ];
 
 const DIFFS = [
-  { title: "Spend from a portfolio, not a cash pile", body: "The treasury stays invested, for example in tokenized Nvidia. Endowment mode only spends gains, so the principal is never touched." },
+  { title: "Spend from a portfolio, not a cash pile", body: "The treasury stays invested, for example in ETH and SOL. Endowment mode only spends gains, so the principal is never touched." },
   { title: "A human on every order", body: "Agents propose, people decide. Every order needs an explicit approval, with the reason and the cost shown up front." },
   { title: "Guardrails the model can't argue with", body: "Limits are plain code, not prompts. A second model checks each order against what you actually asked for." },
   { title: "Pays in whatever the seller wants", body: "The router compares paying in kind against swapping, checks price drift on tokenized stocks, and picks the cheapest safe path." },

@@ -17,7 +17,7 @@
 .tb-asset .muted { color: rgba(253, 253, 255, 0.6); text-align: right; }
 
 .asset-dot { width: 8px; height: 8px; border-radius: 99px; display: inline-block; background: var(--text-3); }
-.dot-nvdac { background: var(--mint); }
+.dot-eth { background: var(--mint); }
 .dot-usdc { background: #6E8FB8; }
 .treasury-banner .dot-usdc { background: #9DB4D3; }
 

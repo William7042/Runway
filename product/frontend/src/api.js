@@ -27,6 +27,7 @@ export const api = {
   submit: (id, submission) => req("POST", `/bounties/${id}/submit`, { submission }),
   verify: (id, decision, reason = "") => req("POST", `/bounties/${id}/verify`, { decision, reason }),
   specialists: () => req("GET", "/specialists"),
+  registerSpecialist: (body) => req("POST", "/specialists", body),
   attack: () => req("POST", "/demo/attack"),
   reset: () => req("POST", "/demo/reset"),
 };

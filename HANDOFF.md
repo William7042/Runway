@@ -2,7 +2,7 @@
 
 The `runway_money` package exposes `propose_payment(buyer, seller, amount_usd, purpose, source)` and `execute(proposal_id)`. Contract fields and queue endpoints are unchanged. `runway_money.stub.StubRouter(queue=...)` accepts an injected queue for tests; otherwise it uses Person C's HTTP service.
 
-**Access finding:** no NVDAc in the live catalog; use the clearly labeled stub for the stock demo. The test user is funded in Solana PYUSD, not USDC. See ACCESS.md.
+**Access finding:** use the five-token commerce allowlist; distinguish simulated examples from verified payment routes. The test user is funded in Solana PYUSD, not USDC. See ACCESS.md.
 
 A proposal is created pending. Only Person C's human decision flow may approve it. Simulation has no real transaction hash. A dry run must never consume approval or mark the real payment executed. Live execution will bind the approved proposal to a locally saved immutable plan and refuse retries after uncertain submission.
 
@@ -35,3 +35,16 @@ The human authorized a $1 transfer-fee budget and removal of the old blanket hol
 Payment proposals treat `amount_usd` as the seller invoice and show the gross transfer amount in `path`, the fee in `expected_cost`, and seller net/fee/total debit in approval flags. Gross-up is derived from simulation, not a hardcoded deduction. Lower fees reduce the gross debit; fees above $1 or changed recipient net require a fresh plan. Approval still precedes every signature. Invoice caps remain separate from the authorized fee allowance. Existing swap slippage/fee checks remain active.
 
 `RUNWAY_PAYMENT_FEE_USD=1` controls the disclosed transfer allowance. The live agent checks that allowance separately from swap price impact, using the deterministic router plan rather than language-model text. The shared proposal fields and original payment interface are unchanged.
+
+## Seller marketplace and bounty MCP workflow
+
+Latest origin pulled to `21783bf`; local token/wallet cleanup preserved. Product
+extensions are additive: persisted `POST /specialists`, listing updates, and
+`/specialist-jobs` request/payment/result routes. Existing proposal/router
+contracts are unchanged. MCP registration/search/resources use the same product
+registry shown by the dashboard. New listings use owner tokens (hash stored),
+fixed job invoices, idempotency keys, and confirmed-payment delivery gates.
+Money-layer recipient/asset configuration remains required for live purchases.
+Agent tools no longer expose financial decisions, receipt attachment, or bounty
+work approval; those remain in the human dashboard. Bounty claim/submit remains
+a local trusted-client demo; app-managed escrow limitations are unchanged.

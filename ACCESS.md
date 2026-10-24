@@ -4,7 +4,7 @@ Checked 2026-10-24 against production using the supplied organization API key an
 
 ## Immediate team handoff
 
-- **NVDAc is simulated only.** No NVDAc symbol appears in the 219-asset Gateway catalog. This is not a claim about legal eligibility; account-level execution eligibility remains unverified.
+- **Commerce allowlist: USDC, PYUSD, SOL, BTC, and ETH.** Exact IDs and networks come from the live catalog. Off-chain BTC/ETH entries are not verified on-chain payment routes.
 - 209 catalog entries are marked tradeable. Catalog visibility is not proof that this user can trade a pair. The complete public catalog is saved locally under ignored `.runway/gateway_access.json`.
 - Existing `test` user resolves successfully and has Solana + EVM wallets. Gateway balances show **50 PYUSD on Solana**. Runway defaults to a **$1 cap** and **DRY_RUN=1**.
 - Python SDK `truemarkets==0.3.0` installs, but organization auth returns no refresh token and the generated parser raises `KeyError`. `RunwayClient` handles organization authentication without a refresh token and uses the SDK authenticated HTTP transport for current endpoints.
@@ -21,7 +21,7 @@ p = propose_payment('buyer-id', 'seller-id', 1, 'Purchase research', 'user messa
 r = execute(p['id'])
 ```
 
-`RUNWAY_MODE=stub` (default) returns canned NVDAc proposals and labeled simulated fills; `tx_hash` is null. The stub still requires approval. Queue URL defaults to http://localhost:8000. No money-layer code approves proposals.
+`RUNWAY_MODE=stub` (default) returns canned ETH proposals and labeled simulated fills; `tx_hash` is null. The stub still requires approval. Queue URL defaults to http://localhost:8000. No money-layer code approves proposals.
 
 ## Sources
 
@@ -55,7 +55,7 @@ The agent/product work was fetched from origin/main at c290847. Person C's real 
 
 - PYUSD/USDC: the legacy DeFi quote/trade endpoint accepts a 2 PYUSD sell as one unsigned transaction, despite PYUSD not being an orderable Gateway asset. A $1 quote was below minimum. Approved execution spent 2 PYUSD and returned 1.996651 USDC (chain-audited).
 - SOL/USDC: funded USDC removes the bridge. Gateway created a single-payload SOL order; human-approved execution spent 1 USDC and returned 0.00945721 SOL (chain-audited). The receipt is executed with hash 5QFRqXWGZ1EXLngMqreRifvpBxpT14BgcUKMPdRTJrXCHaf5fgWBRVzXS9AaVonfu8Wb5GVoca4zqLHCh3B8pRck.
-- Raw quotes overstated net SOL receipts; unsigned simulation exposed the difference. The human authorized a one-off cost allowance up to $0.07 before approving this order. Normal limits stay unchanged. No NVDAc access was found.
+- Raw quotes overstated net SOL receipts; unsigned simulation exposed the difference. The human authorized a one-off cost allowance up to $0.07 before approving this order. Normal limits stay unchanged. Other payment routes still require verification.
 
 ## Transfer-fee investigation
 

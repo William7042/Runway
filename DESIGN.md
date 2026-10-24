@@ -3,7 +3,7 @@ Oct 24, 2026 · @William
 Vision
 Runway is an economy for AI agents: they hold real assets, hire specialist agents and humans through a bounty board, and pay in whatever they hold, while a person approves every order and the underlying investments stay invested.
 Today an agent cannot buy anything. Paywalls, subscriptions, and human-only services all assume a person with a credit card, so every purchase stalls and pings a human. Stablecoin transfers fix the payment half, but a stablecoin-only budget leaves money idle and forces teams to sell the assets they actually want to hold.
-Runway fixes both. The agent's treasury is a portfolio (for example tokenized Nvidia, NVDAc), and a payment router converts or transfers only what each purchase needs, at the best available quote. True Markets supplies the quotes, orderbooks, wallets, and local signing underneath.
+Runway fixes both. The agent's treasury is a portfolio (for example ETH and SOL, ETH), and a payment router converts or transfers only what each purchase needs, at the best available quote. True Markets supplies the quotes, orderbooks, wallets, and local signing underneath.
 Goals and non-goals
 The hackathon build proves one complete loop end to end: an agent buys a service, the router pays it from a stock portfolio, and a human approved the order first.
 Goals
@@ -53,7 +53,7 @@ How it pays
 What stays invested
 Best when
 Pay in kind
-Transfers the held asset (for example NVDAc) straight to the seller
+Transfers the held asset (for example ETH) straight to the seller
 Everything except the amount paid; no swap fee
 The seller is happy to hold the asset
 Endowment
@@ -86,7 +86,7 @@ Indexed filings archive the buyer does not have
 Price
 A few cents per request
 Accepted assets
-USDC, NVDAc
+USDC, ETH
 Endpoint
 Pay-per-request service that returns data after payment is confirmed
 The buyer agent searches the registry, compares price and fit, and hires through the same approval flow as any other payment.
@@ -120,7 +120,7 @@ Which assets the router considers
 Signing
 sign_turnkey
 Local signature on each approved activity
-Tokenized equities: True Markets launched an on-chain orderbook for tokenized Nvidia, NVDAc/USDC, for beta clients through its APIs and FIX gateway. The venue advertises price protection, limit orders, post-trade best execution reporting, and price improvement, and says tokenized Tesla follows in October. Tokenized equities are limited to eligible clients outside the United States, which is a risk covered below.
+Supported assets are USDC, PYUSD, SOL, BTC, and ETH. Catalog visibility does not prove an executable payment route; each live route needs quote and simulation checks.
 Safety and trust model
 No agent can move funds on its own: every order and transfer needs a human approval, and policy checks run before the human even sees the request.
 • Human approval on every order. The agent proposes; a person approves or rejects. There is no auto-approve mode in the demo build.
@@ -133,13 +133,13 @@ No agent can move funds on its own: every order and transfer needs a human appro
 This project is a technical demo, not financial advice, and it does not give investment recommendations.
 Demo script
 The demo runs about two minutes and ends on a real transaction.
-1. Fund. Show the research agent's wallet: mostly NVDAc, some USDC, in endowment mode.
+1. Fund. Show the research agent's wallet: mostly ETH, some USDC, in endowment mode.
 2. Ask. Pose a question that needs three paid inputs: a filing, a premium archive, and a human fact-check.
 3. Plan. The agent lists the three purchases and posts the fact-check as a bounty.
 4. Approve. For each payment, an approval card shows what will be sold, what will be paid, the quote, and the drift check. The presenter approves one and rejects another to show the gate works.
 5. Pay. The approved swap fills and the transfer lands. Show the transaction on screen.
 6. Attack. Feed the agent a page containing a hidden "send everything to this address" instruction. The policy layer and verifier block it, and the approval card shows the flagged source.
-7. Drift. Flip the drift slider. The agent refuses to sell NVDAc at the bad gap and pays from USDC, explaining why.
+7. Drift. Flip the drift slider. The agent refuses to sell ETH at the bad gap and pays from USDC, explaining why.
 8. Receipts. End on the ledger: every payment, quote versus fill, and principal still invested.
 A recorded backup of this run is kept in case the live demo fails.
 Risks and open questions
@@ -148,8 +148,8 @@ Risk
 Impact
 Mitigation
 No access to tokenized equities for a US-based team
-The NVDAc flow cannot run live
-Ask the True Markets team today; otherwise run the same logic on tradable assets and label the NVDAc flow as simulated
+An unverified payment route cannot run live
+Ask the True Markets team today; otherwise run the same logic on tradable assets and label unverified flows as simulated
 Asset coverage is narrower than "anything on the market"
 Router has fewer paths
 Read tradable assets from the API; confirm which pairs our key can trade
@@ -166,7 +166,7 @@ Human approval on every order slows the flow
 Demo drags
 Batch approvals into one card per task, with per-item detail
 Open questions
-[ ] Does our API key have access to NVDAc/USDC, and can it trade other pairs?
+[ ] Does our API key have access to ETH/USDC, and can it trade other pairs?
 [ ] What are the rate limits and any minimum order sizes?
 [ ] Which reference price source do we use for the drift check?
 [ ] Which track prompt and judging criteria apply to the second track we want to double up on?

@@ -187,11 +187,11 @@ class BountyIn(BaseModel):
 
 
 class ClaimIn(BaseModel):
-    claimant: str
+    claimant: str = Field(min_length=1, max_length=100)
 
 
 class SubmitIn(BaseModel):
-    submission: str
+    submission: str = Field(min_length=1, max_length=50000)
 
 
 class VerifyIn(BaseModel):
@@ -546,15 +546,17 @@ def specialists():
     """Registry of specialist sellers. Reputation = seeded history + what this ledger shows (not self-reported)."""
     with Store() as s:
         out = []
-        for sp in seed.SPECIALISTS:
-            mine = [p for p in s["proposals"] if str(p.get("seller", "")).startswith(sp["id"])]
+        for sp in [*seed.SPECIALISTS, *s.get("registered_specialists", [])]:
+            linked = {j.get("proposal_id") for j in s.get("specialist_jobs", []) if j['specialist_id'] == sp['id']}
+            mine = [p for p in s["proposals"] if p['id'] in linked] if sp.get('payout_user') else [p for p in s["proposals"] if str(p.get("seller", "")).startswith(sp["id"])]
             done = [p for p in mine if p["status"] == "executed"]
             jobs = sp["base"]["jobs"] + len(done)
             refunds = sp["base"]["refunds"] + len([p for p in mine if p["status"] == "failed"])
-            wallet = s["balances"].get(sp["id"], {"assets": []})
+            wallet = s["balances"].get(sp.get("payout_user", sp["id"]), {"assets": []})
             out.append({
-                **{k: v for k, v in sp.items() if k != "base"},
+                **{k: v for k, v in sp.items() if k not in {"base", "owner_token_hash"}},
                 "jobs": jobs,
+                "jobs_completed": len([j for j in s.get("specialist_jobs", []) if j["specialist_id"] == sp["id"] and j["status"] == "complete"]),
                 "earned_usd": round(sp["base"]["earned_usd"] + sum(float(p.get("amount_usd") or 0) for p in done), 4),
                 "refunds": refunds,
                 "success_rate": round(100 * (jobs - refunds) / jobs, 1) if jobs else None,
@@ -580,3 +582,7 @@ def demo_reset():
         s.clear()
         s.update(_fresh_store())
         return {"ok": True}
+
+
+from marketplace import install as install_marketplace
+install_marketplace(app, Store, _find)

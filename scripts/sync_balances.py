@@ -1,5 +1,6 @@
 """Read real demo balances and publish snapshots to Person C; no money moves."""
 import json
+from datetime import datetime, timezone
 import httpx
 from runway_money.backend import TrueMarketsBackend
 from runway_money.state import State
@@ -14,7 +15,7 @@ backend = TrueMarketsBackend()
 for name in ('test', 'test2'):
     rows = backend.balances(name)
     snapshot = {'label': f'{name} — real Gateway wallet', 'treasury_mode': 'pay_in_kind',
-                'simulated': False, 'assets': [
+                'simulated': False, 'snapshot_at': datetime.now(timezone.utc).isoformat(), 'assets': [
                     {'asset': b['symbol'], 'amount': float(b['available']),
                      'usd_value': float(b['available']) if b['stable'] else None,
                      'chain': b['chain'], 'asset_id': b['asset_id']} for b in rows],

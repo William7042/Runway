@@ -32,7 +32,7 @@ def main():
                 if isinstance(value, list):
                     print(key, 'items:', len(value))
                     if op == 'get_assets':
-                        print('NVDAc catalog entries:', [x.get('symbol') for x in value if 'nvda' in str(x.get('symbol','')).lower()])
+                        print('Commerce catalog entries:', [x.get('symbol') for x in value if x.get('symbol') in {'USDC', 'PYUSD', 'SOL', 'BTC', 'ETH'}])
                 elif isinstance(value, dict):
                     print(key, 'fields:', list(value))
                 else:

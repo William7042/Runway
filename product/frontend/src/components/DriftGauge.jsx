@@ -32,12 +32,11 @@ export default function DriftGauge({ config, onChange }) {
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>NVDAc price drift</h2>
+        <h2>Price deviation · simulated</h2>
         <span className={`pill ${bad ? "pill-bad" : "pill-ok"}`}>{bad ? "Selling paused" : "OK to sell"}</span>
       </div>
       <p className="panel-note">
-        Simulated demo control: on-chain NVDAc vs. a reference Nvidia price. (Live catalog has no NVDAc —
-        stock paths are labeled simulated.) Above {threshold}%, the agent won't sell and pays from USDC instead.
+        Demo quote versus reference price. Above {threshold}%, the simulated route prefers USDC. This slider does not change live prices or balances.
       </p>
       <div className="gauge-number">
         <span className={bad ? "danger" : ""}>{Number(local).toFixed(1)}%</span>
