@@ -9,6 +9,9 @@ import DemoControls from "./components/DemoControls.jsx";
 import TwoAgents from "./components/TwoAgents.jsx";
 import Backdrop from "./components/Backdrop.jsx";
 import Specialists from "./components/Specialists.jsx";
+import Balances from "./components/Balances.jsx";
+import DriftGauge from "./components/DriftGauge.jsx";
+import ReceiptsFeed from "./components/Receipts.jsx";
 import { usd, ago, parseFlag } from "./format.js";
 
 // Routes: "#home" (landing, default), "#desk", "#specialists", "#bounties", "#activity", "#agents" (live demo)
@@ -131,10 +134,13 @@ export default function App() {
         </nav>
         <div className="status">
           {treasury !== null && (
-            <button className="treasury-chip" onClick={() => go("specialists")} title="Research agent wallet">
+            <button className="treasury-chip" onClick={() => go("desk")} title="Research agent wallet">
               <span className="tc-label">Agent wallet</span>
               <span className="tc-amount num">{usd(treasury, 2)}</span>
             </button>
+          )}
+          {state.health?.stub_executor && (
+            <span className="pill pill-soft" title="Stub executor posts simulated receipts">Simulated fills</span>
           )}
           {state.config?.dry_run && <span className="pill pill-warn">Dry run</span>}
           <span className={`live ${online ? "on" : "off"}`} title={API}>
@@ -153,64 +159,82 @@ export default function App() {
       {route === "home" && <Landing onOpen={() => go("desk")} />}
 
       {route === "desk" && (
-        <main className="desk-focus">
-          {blocked.map((p) => (
-            <div key={p.id} className="blocked-wrap">
-              <BlockedCard p={p} />
-              <button className="btn btn-ghost small dismiss" onClick={() => setDismissedBlocked(new Set([...dismissedBlocked, p.id]))}>
-                Dismiss
-              </button>
-            </div>
-          ))}
+        <main className="desk-layout">
+          <div className="desk-main">
+            {blocked.map((p) => (
+              <div key={p.id} className="blocked-wrap">
+                <BlockedCard p={p} />
+                <button className="btn btn-ghost small dismiss" onClick={() => setDismissedBlocked(new Set([...dismissedBlocked, p.id]))}>
+                  Dismiss
+                </button>
+              </div>
+            ))}
 
-          <div className="page-title">
-            <h1>{pending.length === 0 ? "You're all caught up" : pending.length === 1 ? "1 decision waiting" : `${pending.length} decisions waiting`}</h1>
-            <p>Nothing is paid until you approve it. There is no auto-approve.</p>
+            <div className="page-title">
+              <h1>{pending.length === 0 ? "You're all caught up" : pending.length === 1 ? "1 decision waiting" : `${pending.length} decisions waiting`}</h1>
+              <p>Nothing is paid until you approve it. There is no auto-approve.</p>
+            </div>
+
+            {current ? (
+              <ProposalCard
+                key={current.id}
+                p={current}
+                config={state.config}
+                onDecide={decide}
+                position={pending.indexOf(current) + 1}
+                total={pending.length}
+              />
+            ) : (
+              <div className="empty big-empty">
+                <div className="empty-mark">✓</div>
+                <div className="strong">No orders need your approval.</div>
+                <div>When the agent wants to spend, it will show up here first.</div>
+                <button className="btn small" onClick={() => go("activity")}>
+                  See full activity
+                </button>
+              </div>
+            )}
+
+            {upNext.length > 0 && (
+              <section className="upnext">
+                <h2 className="section-title">Up next</h2>
+                <div className="upnext-list">
+                  {upNext.map((p) => {
+                    const hasWarn = (p.flags || []).length > 0;
+                    return (
+                      <button key={p.id} className="upnext-row" onClick={() => setSelectedId(p.id)}>
+                        <div className="grow">
+                          <div className="upnext-title">{titleOf(p)}</div>
+                          <div className="upnext-sub">
+                            to {p.seller} · {ago(p.created_at)}
+                            {hasWarn && <span className="warn-dot"> · {parseFlag(p.flags[0]).label}</span>}
+                          </div>
+                        </div>
+                        <span className="upnext-amt num">{usd(p.amount_usd)}</span>
+                        <span className="chev" aria-hidden="true">›</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
           </div>
 
-          {current ? (
-            <ProposalCard
-              key={current.id}
-              p={current}
+          <aside className="desk-side">
+            <Balances balances={state.balances} layout="stack" />
+            <DriftGauge
               config={state.config}
-              onDecide={decide}
-              position={pending.indexOf(current) + 1}
-              total={pending.length}
+              onChange={async (v) => {
+                await api.setConfig({ drift_pct: v });
+                refresh();
+              }}
             />
-          ) : (
-            <div className="empty big-empty">
-              <div className="empty-mark">✓</div>
-              <div className="strong">No orders need your approval.</div>
-              <div>When the agent wants to spend, it will show up here first.</div>
-              <button className="btn small" onClick={() => go("activity")}>
-                See activity
-              </button>
-            </div>
-          )}
-
-          {upNext.length > 0 && (
-            <section className="upnext">
-              <h2 className="section-title">Up next</h2>
-              <div className="upnext-list">
-                {upNext.map((p) => {
-                  const hasWarn = (p.flags || []).length > 0;
-                  return (
-                    <button key={p.id} className="upnext-row" onClick={() => setSelectedId(p.id)}>
-                      <div className="grow">
-                        <div className="upnext-title">{titleOf(p)}</div>
-                        <div className="upnext-sub">
-                          to {p.seller} · {ago(p.created_at)}
-                          {hasWarn && <span className="warn-dot"> · {parseFlag(p.flags[0]).label}</span>}
-                        </div>
-                      </div>
-                      <span className="upnext-amt num">{usd(p.amount_usd)}</span>
-                      <span className="chev" aria-hidden="true">›</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          )}
+            <ReceiptsFeed
+              receipts={state.proposals
+                .filter((p) => p.receipt)
+                .sort((a, b) => (b.receipt?.at || 0) - (a.receipt?.at || 0))}
+            />
+          </aside>
         </main>
       )}
 
