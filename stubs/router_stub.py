@@ -64,7 +64,10 @@ def propose_payment(
         expected_cost=round(amount_usd * 0.003, 4),  # ~30 bps fees
         alternatives=[alt],
         drift=DriftInfo(on_chain_price=3001.5, reference_price=3000.05, gap_pct=0.05),
-        flags=["SIMULATED: canned ETH price and balances; no funds move", *(flags or [])],
+        flags=[
+            "SIMULATED: canned ETH price and balances; no funds move",
+            *(flags or []),
+        ],
         source=source,
         status=ProposalStatus.PENDING,
     )

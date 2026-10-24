@@ -27,10 +27,14 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # optional XAI_API_KEY for live Grok
 
-uvicorn stubs.queue_service:app --port 8000   # terminal 1
+uvicorn product.queue_service.app:app --port 8000   # terminal 1 (or stubs.queue_service)
+python -m sellers.run_all                             # terminal 2 — SIMULATED sellers
+cd product/frontend && npm run dev                    # terminal 3 — desk UI
 
-DRY_RUN=1 python -m demo.run_research         # proposes 3 payments
-DRY_RUN=1 python -m demo.attack_script        # policy block + verifier flag
+DRY_RUN=1 python -m demo.run_research                 # proposes 3 payments
+# Approve in the UI, then:
+DRY_RUN=1 python -m demo.run_research --fetch         # paid → SIMULATED seller data
+DRY_RUN=1 python -m demo.attack_script                # policy block + verifier flag
 ```
 
 **Safety:** demo wallets hold a few dollars. `DRY_RUN=1` means nothing is signed or sent. Technical demo, not financial advice. No auto-approve mode.

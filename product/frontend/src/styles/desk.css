@@ -35,6 +35,11 @@
 .alt { padding: 8px 0 0 14px; border-left: 2px solid var(--border); margin-top: 8px; }
 .alt-path { color: var(--text-2); font-size: var(--fs-small); font-weight: 500; }
 .alt-why { color: var(--text-3); font-size: var(--fs-small); }
+.alts-block { margin-top: 4px; padding: 12px 0 4px; border-top: 1px solid var(--border); }
+.sim-banner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: -4px; }
+.tx-link { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+.tx-link:hover { color: var(--mint, #9fe870); }
+.receipt-fee, .receipt-note { margin-top: 4px; }
 
 .pc-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .reject-box { display: flex; flex-direction: column; gap: 10px; }

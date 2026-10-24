@@ -107,6 +107,12 @@ export default function ProposalCard({ p, config, onDecide, position, total }) {
 
       <PaymentFlow p={p} />
 
+      {(p.flags || []).some((f) => String(f).startsWith("SIMULATED")) && (
+        <div className="sim-banner muted small">
+          This path is <span className="pill pill-soft">simulated</span> — stub router / demo balances, not a live True Markets fill.
+        </div>
+      )}
+
       <div className="dc-facts">
         <div>
           <span className="fact-label">Fees and price impact</span>
@@ -124,6 +130,20 @@ export default function ProposalCard({ p, config, onDecide, position, total }) {
         </div>
       </div>
 
+      {p.alternatives?.length > 0 && (
+        <div className="alts-block">
+          <div className="fact-label">Rejected alternatives</div>
+          {p.alternatives.map((a, i) => (
+            <div key={i} className="alt">
+              <div className="alt-path num">
+                {(a.path || []).map((s) => `${s.type === "swap" ? "sell" : "pay"} ${amt(s.amount)} ${s.asset}`).join("  →  ")}
+              </div>
+              <div className="alt-why">{a.rejected_reason}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <details className="alts dc-more">
         <summary>More details</summary>
         <div className="more-grid">
@@ -139,19 +159,6 @@ export default function ProposalCard({ p, config, onDecide, position, total }) {
               <div className="num">
                 {usd(p.expected_cost.price_impact_usd, 4)} price impact + {usd(p.expected_cost.fees_usd, 4)} fees
               </div>
-            </div>
-          )}
-          {p.alternatives?.length > 0 && (
-            <div>
-              <div className="fact-label">Other ways to pay it considered</div>
-              {p.alternatives.map((a, i) => (
-                <div key={i} className="alt">
-                  <div className="alt-path num">
-                    {(a.path || []).map((s) => `${s.type === "swap" ? "sell" : "pay"} ${amt(s.amount)} ${s.asset}`).join("  →  ")}
-                  </div>
-                  <div className="alt-why">{a.rejected_reason}</div>
-                </div>
-              ))}
             </div>
           )}
         </div>

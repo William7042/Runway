@@ -262,13 +262,36 @@ def _write_receipt(s: dict, p: dict, receipt: dict) -> dict:
 def _stub_receipt(p: dict) -> dict:
     cost = p.get("expected_cost")
     quoted_cost = cost.get("total_usd", 0) if isinstance(cost, dict) else float(cost or 0)
+    if isinstance(cost, dict):
+        fee = float(cost.get("fees_usd") or 0)
+    else:
+        fee = 0.0
     slip = round(random.uniform(-0.00005, 0.00012), 6)
+    invoice = float(p.get("amount_usd") or 0)
     return {
-        "quote": {"amount_usd": p["amount_usd"], "cost_usd": quoted_cost},
-        "fill": {"amount_usd": p["amount_usd"], "cost_usd": max(0.0, round(quoted_cost + slip, 6))},
+        "quote": {
+            "amount_usd": invoice,
+            "cost_usd": quoted_cost,
+            "invoice_usd": invoice,
+            "fee_usd": fee,
+            "seller_net_usd": invoice,
+            "gross_debit_usd": invoice + fee,
+            "simulated": True,
+        },
+        "fill": {
+            "amount_usd": invoice,
+            "cost_usd": max(0.0, round(quoted_cost + slip, 6)),
+            "invoice_usd": invoice,
+            "fee_usd": fee,
+            "seller_net_usd": invoice,
+            "gross_debit_usd": invoice + fee,
+            "simulated": True,
+        },
         "tx_hash": "STUB-" + uuid.uuid4().hex[:16],
         "status": "executed",
         "stub": True,
+        "simulated": True,
+        "note": "SIMULATED fill — stub executor; not a chain transaction.",
     }
 
 

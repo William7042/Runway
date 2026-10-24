@@ -216,11 +216,23 @@ a.btn { text-decoration: none; }
 
 .desk-focus { width: 100%; max-width: 860px; margin: 0 auto; padding: 48px 24px 120px; display: flex; flex-direction: column; gap: 20px; }
 .desk-focus .page-title { margin-bottom: 4px; }
+.desk-layout {
+  width: 100%; max-width: 1280px; margin: 0 auto; padding: 40px 24px 120px;
+  display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start;
+}
+.desk-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.desk-main .page-title { margin-bottom: 4px; }
+.desk-side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 76px; }
+.desk-side .panel { padding: 16px 18px; }
 .big-empty { display: flex; flex-direction: column; gap: 8px; align-items: center; padding: 64px 24px; }
 .empty-mark { width: 44px; height: 44px; border-radius: 99px; background: var(--good-bg); color: var(--good); display: grid; place-items: center; font-weight: 700; font-size: 20px; margin-bottom: 4px; }
 .big-empty .strong { color: var(--text); font-size: 16px; }
 .big-empty .btn { margin-top: 8px; }
-@media (max-width: 1000px) { .desk-focus { padding: 28px 16px 120px; } }
+@media (max-width: 1000px) {
+  .desk-focus { padding: 28px 16px 120px; }
+  .desk-layout { grid-template-columns: 1fr; padding: 28px 16px 120px; }
+  .desk-side { position: static; }
+}
 
 
 /* ==========================================================================

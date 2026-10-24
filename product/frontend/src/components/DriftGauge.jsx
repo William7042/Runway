@@ -36,7 +36,8 @@ export default function DriftGauge({ config, onChange }) {
         <span className={`pill ${bad ? "pill-bad" : "pill-ok"}`}>{bad ? "Selling paused" : "OK to sell"}</span>
       </div>
       <p className="panel-note">
-        On-chain NVDAc vs. the real Nvidia price. Above {threshold}%, the agent won't sell and pays from USDC instead.
+        Simulated demo control: on-chain NVDAc vs. a reference Nvidia price. (Live catalog has no NVDAc —
+        stock paths are labeled simulated.) Above {threshold}%, the agent won't sell and pays from USDC instead.
       </p>
       <div className="gauge-number">
         <span className={bad ? "danger" : ""}>{Number(local).toFixed(1)}%</span>

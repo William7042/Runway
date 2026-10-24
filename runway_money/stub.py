@@ -1,8 +1,13 @@
 """Canned ETH demo. Never imports the SDK, signs, or submits a transaction."""
+import os
 from decimal import Decimal
 from uuid import uuid4
 from .queue import HTTPQueue
 from .prices import drift_bps
+
+
+def _dry_run() -> bool:
+    return os.getenv("DRY_RUN", "1") == "1"
 
 
 class StubRouter:
@@ -36,8 +41,42 @@ class StubRouter:
 
     def execute(self, proposal_id):
         p = self.queue.approved(proposal_id)
-        receipt = dict(quote={"simulated": True, "path": p["path"]},
-                       fill={"simulated": True, "amount_usd": p["amount_usd"]},
-                       tx_hash=None, status="executed")
+        invoice = float(p["amount_usd"])
+        # Honest fee disclosure for the simulated transfer leg (mirrors live PYUSD fee story).
+        fee_usd = float(os.getenv("RUNWAY_PAYMENT_FEE_USD", "0") or 0)
+        quote = {
+            "simulated": True,
+            "path": p["path"],
+            "invoice_usd": invoice,
+            "fee_usd": fee_usd,
+            "seller_net_usd": invoice,
+            "gross_debit_usd": invoice + fee_usd,
+            "cost_usd": fee_usd,
+        }
+        if _dry_run():
+            receipt = dict(
+                quote={**quote, "dry_run": True},
+                fill={"simulated": True, "filled": False, "reason": "DRY_RUN=1 — nothing signed or sent"},
+                tx_hash=None,
+                status="dry_run",
+                stub=True,
+            )
+            # Do not mark executed / post a terminal success receipt on dry run.
+            return receipt
+        fill = {
+            "simulated": True,
+            "amount_usd": invoice,
+            "fee_usd": fee_usd,
+            "seller_net_usd": invoice,
+            "gross_debit_usd": invoice + fee_usd,
+            "cost_usd": fee_usd,
+        }
+        receipt = dict(
+            quote=quote,
+            fill=fill,
+            tx_hash="STUB-" + uuid4().hex[:16],
+            status="executed",
+            stub=True,
+        )
         self.queue.receipt(proposal_id, receipt)
         return receipt
