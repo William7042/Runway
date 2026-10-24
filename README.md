@@ -34,3 +34,7 @@ DRY_RUN=1 python -m demo.attack_script        # policy block + verifier flag
 ```
 
 **Safety:** demo wallets hold a few dollars. `DRY_RUN=1` means nothing is signed or sent. Technical demo, not financial advice. No auto-approve mode.
+
+## Person A — Money layer
+
+See [MONEY.md](MONEY.md) for True Markets setup, approval-gated execution, treasury modes, and safety tests; [ACCESS.md](ACCESS.md) records live access findings. Person C's real queue is in `product/queue_service/`. Start it with `STUB_EXECUTOR=0` for money-layer integration.
