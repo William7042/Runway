@@ -21,3 +21,9 @@ Runway lets AI agents pay for things. Today an agent can't buy anything online w
 ### Run the demo
 
 See `product/README.md` and `product/DEMO_SCRIPT.md`. The demo runs with `DRY_RUN=1` and a stub executor, so it never signs or sends money.
+
+## Judge feedback (2026-10-24, ~1:24 PM ET, lightly cleaned up)
+
+> There are stablecoins, and then there are the more volatile assets we list. Find the ones that make the most sense to accept as payment. A lot of people use Bitcoin for payments; since the Silk Road it has been a popular currency for transactions. I urge you not to enable every token as a payment coin, because many of them don't make sense as one. Sample from our asset selection: which ones would make sense for facilitating commerce?
+
+Takeaway: pick a short list of payment assets (stablecoins plus a few liquid majors such as BTC) instead of allowing every listed token. Explain why each one is on the list.
