@@ -3,34 +3,39 @@ import { api, API } from "./api.js";
 import ProposalCard, { titleOf } from "./components/ProposalCard.jsx";
 import BlockedCard from "./components/BlockedCard.jsx";
 import BountyBoard from "./components/BountyBoard.jsx";
-import Activity from "./components/Activity.jsx";
+import Wallet from "./components/Wallet.jsx";
+import Hire from "./components/Hire.jsx";
+import Sell from "./components/Sell.jsx";
 import Landing from "./components/Landing.jsx";
 import DemoControls from "./components/DemoControls.jsx";
 import TwoAgents from "./components/TwoAgents.jsx";
 import Backdrop from "./components/Backdrop.jsx";
-import Specialists from "./components/Specialists.jsx";
 import Balances from "./components/Balances.jsx";
 import DriftGauge from "./components/DriftGauge.jsx";
 import ReceiptsFeed from "./components/Receipts.jsx";
 import { usd, ago, parseFlag } from "./format.js";
 
-// Routes: "#home" (landing, default), "#desk", "#specialists", "#bounties", "#activity", "#agents" (live demo)
+// Tabs follow the demo story left to right: give a task → approve → hire → sell → see the money.
+// Routes: "#home" (landing, default), "#tasks", "#desk", "#hire", "#hire/bounties", "#sell", "#wallet"
 const TABS = [
+  ["tasks", "Tasks"],
   ["desk", "Approvals"],
-  ["specialists", "Specialists"],
-  ["bounties", "Bounties"],
-  ["activity", "Activity"],
-  ["agents", "Request"],
+  ["hire", "Hire"],
+  ["sell", "Sell"],
+  ["wallet", "Wallet"],
 ];
 const ROUTES = ["home", ...TABS.map(([k]) => k)];
+// Old links keep working.
+const ALIASES = { agents: "tasks", specialists: "hire", bounties: "hire/bounties", activity: "wallet", ledger: "wallet" };
 
 function useRoute() {
   const read = () => {
-    const h = location.hash.slice(1);
-    if (h === "ledger") return "activity"; // old link
-    return ROUTES.includes(h) ? h : "home";
+    let h = location.hash.slice(1);
+    h = ALIASES[h] || h;
+    const [base, sub] = h.split("/");
+    return ROUTES.includes(base) ? { base, sub } : { base: "home" };
   };
-  const [route, setRoute] = useState(read);
+  const [r, setRoute] = useState(read);
   useEffect(() => {
     const on = () => {
       setRoute(read());
@@ -39,11 +44,12 @@ function useRoute() {
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);
-  return [route, (r) => (location.hash = r)];
+  return [r, (to) => (location.hash = to)];
 }
 
 export default function App() {
-  const [route, go] = useRoute();
+  const [{ base: route, sub }, go] = useRoute();
+  const [deskView, setDeskView] = useState("waiting");
   const [state, setState] = useState({ proposals: [], config: null, balances: {}, bounties: [], health: null });
   const [online, setOnline] = useState(true);
   const [toast, setToast] = useState(null);
@@ -102,6 +108,9 @@ export default function App() {
   const current = pending.find((p) => p.id === selectedId) || pending[0];
   const upNext = pending.filter((p) => p !== current);
   const blocked = state.proposals.filter((p) => p.blocked && !dismissedBlocked.has(p.id)).slice(0, 1);
+  const decided = state.proposals
+    .filter((p) => p.status !== "pending")
+    .sort((a, b) => (b.receipt?.at || b.decision?.at || 0) - (a.receipt?.at || a.decision?.at || 0));
   const ra = state.balances?.["research-agent"];
   const treasury = ra ? (ra.assets || []).reduce((a, x) => a + Number(x.usd_value || 0), 0) : null;
 
@@ -134,7 +143,7 @@ export default function App() {
         </nav>
         <div className="status">
           {treasury !== null && (
-            <button className="treasury-chip" onClick={() => go("desk")} title="Research agent wallet">
+            <button className="treasury-chip" onClick={() => go("wallet")} title="Research agent wallet">
               <span className="tc-label">Agent wallet</span>
               <span className="tc-amount num">{usd(treasury, 2)}</span>
             </button>
@@ -158,6 +167,8 @@ export default function App() {
 
       {route === "home" && <Landing onOpen={() => go("desk")} />}
 
+      {route === "tasks" && <TwoAgents />}
+
       {route === "desk" && (
         <main className="desk-layout">
           <div className="desk-main">
@@ -171,11 +182,40 @@ export default function App() {
             ))}
 
             <div className="page-title">
-              <h1>{pending.length === 0 ? "You're all caught up" : pending.length === 1 ? "1 decision waiting" : `${pending.length} decisions waiting`}</h1>
+              <h1>{deskView === "decided" ? "Decided" : pending.length === 0 ? "You're all caught up" : pending.length === 1 ? "1 decision waiting" : `${pending.length} decisions waiting`}</h1>
               <p>Nothing is paid until you approve it. There is no auto-approve.</p>
             </div>
 
-            {current ? (
+            <div className="subtabs" role="tablist">
+              <button role="tab" aria-selected={deskView === "waiting"} className={`subtab ${deskView === "waiting" ? "active" : ""}`} onClick={() => setDeskView("waiting")}>
+                Waiting {pending.length > 0 && <span className="count">{pending.length}</span>}
+              </button>
+              <button role="tab" aria-selected={deskView === "decided"} className={`subtab ${deskView === "decided" ? "active" : ""}`} onClick={() => setDeskView("decided")}>
+                Decided
+              </button>
+            </div>
+
+            {deskView === "decided" ? (
+              decided.length === 0 ? (
+                <div className="empty">Nothing decided yet.</div>
+              ) : (
+                <div className="recent">
+                  {decided.map((p) => (
+                    <div key={p.id} className="recent-row">
+                      <div className="grow">
+                        <div className="recent-title">{titleOf(p)}</div>
+                        <div className="recent-sub">
+                          to {p.seller} · {ago(p.receipt?.at || p.decision?.at || p.created_at)}
+                          {p.decision?.reason ? ` · “${p.blocked ? "Blocked by policy" : p.decision.reason}”` : ""}
+                        </div>
+                      </div>
+                      <span className={`pill pill-${p.status}`}>{p.blocked ? "blocked" : p.status}</span>
+                      <span className="recent-amt num">{usd(p.amount_usd)}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : current ? (
               <ProposalCard
                 key={current.id}
                 p={current}
@@ -189,13 +229,13 @@ export default function App() {
                 <div className="empty-mark">✓</div>
                 <div className="strong">No orders need your approval.</div>
                 <div>When the agent wants to spend, it will show up here first.</div>
-                <button className="btn small" onClick={() => go("activity")}>
-                  See full activity
+                <button className="btn small" onClick={() => go("wallet")}>
+                  See wallet history
                 </button>
               </div>
             )}
 
-            {upNext.length > 0 && (
+            {deskView === "waiting" && upNext.length > 0 && (
               <section className="upnext">
                 <h2 className="section-title">Up next</h2>
                 <div className="upnext-list">
@@ -238,35 +278,25 @@ export default function App() {
         </main>
       )}
 
-      {route === "activity" && (
+      {route === "hire" && <Hire sub={sub} go={go} api={api} state={state} tick={tick} refresh={refresh} />}
+
+      {route === "sell" && (
         <main className="page">
           <div className="page-title">
-            <h1>Activity</h1>
-            <p>Wallets, totals, and every decision with quote versus fill.</p>
+            <h1>Sell</h1>
+            <p>Your agent's own services. Other agents hire it, pay through their own approval, and your agent gets paid.</p>
           </div>
-          <Activity proposals={state.proposals} balances={state.balances} />
+          <Sell api={api} refreshKey={tick} />
         </main>
       )}
 
-      {route === "agents" && <TwoAgents />}
-
-      {route === "specialists" && (
+      {route === "wallet" && (
         <main className="page">
           <div className="page-title">
-            <h1>Specialists</h1>
-            <p>Agents the research agent can hire. Each one holds something it doesn't, and gets paid per job.</p>
+            <h1>Wallet</h1>
+            <p>What the agent holds, what came in, what went out, and every transaction.</p>
           </div>
-          <Specialists api={api} balances={state.balances} refreshKey={tick} onOpenApprovals={() => go("desk")} />
-        </main>
-      )}
-
-      {route === "bounties" && (
-        <main className="page">
-          <div className="page-title">
-            <h1>Bounties</h1>
-            <p>Hire people and agents. Every payout is approved like any other order.</p>
-          </div>
-          <BountyBoard bounties={state.bounties} proposals={state.proposals} api={api} refresh={refresh} />
+          <Wallet api={api} proposals={state.proposals} balances={state.balances} refreshKey={tick} />
         </main>
       )}
 
