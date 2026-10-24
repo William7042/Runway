@@ -75,3 +75,15 @@ def test_transfer_preview_uses_simulated_fee_not_zero_pending_api_fields(monkeyp
     assert preview['fee'] == '1' and preview['received'] == '4' and preview['sent'] == '5'
     assert preview['fee_source'] == 'unsigned_solana_simulation'
     assert 'payloads' not in preview
+
+
+def test_transfer_overpayment_requires_fresh_fee_approval():
+    owner,target=b58(bytes([7])*32),b58(bytes([8])*32)
+    result={'err':None,'fee':10000,'preBalances':[1,1],'postBalances':[1,1],
+            'preTokenBalances':[balance(owner,'mint',10000000),balance(target,'mint',0)],
+            'postTokenBalances':[balance(owner,'mint',4000000),balance(target,'mint',6000000)]}
+    guard,prepared,owner,target=fixture(result)
+    asset={'address':'mint','symbol':'PYUSD','chain':'solana'}
+    with pytest.raises(ValueError,match='more than approved'):
+        guard.verify(prepared,owner,input_asset=asset,output_asset=asset,
+                     max_input=6,min_output=5,max_output=5,recipient=target)

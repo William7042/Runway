@@ -97,3 +97,11 @@ RUNWAY_MODE=live .venv/bin/python -m runway_money.cli swap \
 ```
 
 The preflight simulates the exact payload without signing or broadcasting, rejects extra token/SOL debits, checks net output or recipient credit, and binds the checked payload digest to signing. It re-simulates a fresh quote after approval. Standalone approval freshness uses the human decision time, while explicit input/output bounds remain fixed. Actual settlement is checked independently through Solana RPC before an executed receipt is posted. Simulation is a state snapshot, not a new on-chain price-protection instruction; quote changes can still cause a safe refusal. Transfers remain held after the earlier $1 application-fee incident, and no compensating payment was sent.
+
+## Current policy — $1 transfer fee authorized
+
+The human authorized a $1 transfer-fee budget and removal of the old blanket hold. A fresh unsigned live draft verified **6 PYUSD gross debit → 5 PYUSD seller net + 1 PYUSD fee**. No funds were moved. The prior hold evidence is retained with its explicit resolution; any new settlement mismatch can establish a new hold.
+
+Payment proposals treat `amount_usd` as the seller invoice and show the gross transfer amount in `path`, the fee in `expected_cost`, and seller net/fee/total debit in approval flags. Gross-up is derived from simulation, not a hardcoded deduction. Lower fees reduce the gross debit; fees above $1 or changed recipient net require a fresh plan. Approval still precedes every signature. Invoice caps remain separate from the authorized fee allowance. Existing swap slippage/fee checks remain active.
+
+`RUNWAY_PAYMENT_FEE_USD=1` controls the disclosed transfer allowance. The live agent checks that allowance separately from swap price impact, using the deterministic router plan rather than language-model text. The shared proposal fields and original payment interface are unchanged.

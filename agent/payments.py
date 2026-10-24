@@ -65,12 +65,13 @@ def propose_and_enqueue(
 
     # Money-layer adapter owns all True Markets access.
     if live:
-        from runway_money.agent_adapter import draft_payment
+        from runway_money.agent_adapter import draft_payment, transfer_fee_usd
         proposal = draft_payment(buyer, seller, amount_usd, purpose, source)
         # The router's real assets and fees must satisfy policy before enqueue.
         policy_result = check_proposal(config=policy, buyer=buyer, seller=seller,
             amount_usd=amount_usd, assets_in_path=[s.asset for s in proposal.path],
-            expected_cost=proposal.expected_cost, purpose=purpose, source=source)
+            expected_cost=proposal.expected_cost, purpose=purpose, source=source,
+            transfer_fee_usd=transfer_fee_usd(proposal.id))
         if policy_result.blocked:
             return None, policy_result, None
     else:

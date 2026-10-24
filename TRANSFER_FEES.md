@@ -31,3 +31,11 @@ PYTHONPATH=. .venv/bin/python scripts/investigate_transfer_fees.py
 This script contains no signing or execute calls. Detailed unsigned probe results remain private under ignored `.runway/transfer-fee-investigation.json`.
 
 References: [Gateway send-funds guide](https://docs.truemarkets.co/gateway/send-funds/), [transfer-record schema](https://docs.truemarkets.co/api/gateway/get-transfer/), [Solana simulation API](https://solana.com/docs/rpc/http/simulatetransaction).
+
+## Current policy — $1 transfer fee authorized
+
+The human authorized a $1 transfer-fee budget and removal of the old blanket hold. A fresh unsigned live draft verified **6 PYUSD gross debit → 5 PYUSD seller net + 1 PYUSD fee**. No funds were moved. The prior hold evidence is retained with its explicit resolution; any new settlement mismatch can establish a new hold.
+
+Payment proposals treat `amount_usd` as the seller invoice and show the gross transfer amount in `path`, the fee in `expected_cost`, and seller net/fee/total debit in approval flags. Gross-up is derived from simulation, not a hardcoded deduction. Lower fees reduce the gross debit; fees above $1 or changed recipient net require a fresh plan. Approval still precedes every signature. Invoice caps remain separate from the authorized fee allowance. Existing swap slippage/fee checks remain active.
+
+`RUNWAY_PAYMENT_FEE_USD=1` controls the disclosed transfer allowance. The live agent checks that allowance separately from swap price impact, using the deterministic router plan rather than language-model text. The shared proposal fields and original payment interface are unchanged.

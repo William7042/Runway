@@ -29,6 +29,7 @@ class PolicyConfig:
     velocity_limit: int = 10  # max proposals per window
     velocity_window_sec: float = 300.0  # 5 minutes
     max_single_payment_usd: float = 2.0
+    transfer_fee_budget_usd: float = 1.0
 
 
 @dataclass
@@ -62,6 +63,7 @@ def check_proposal(
     purpose: str,
     source: str,
     record_velocity: bool = True,
+    transfer_fee_usd: float = 0.0,
 ) -> PolicyResult:
     """Return ok=False with logged reasons if any rule is violated."""
     reasons: list[str] = []
@@ -92,9 +94,11 @@ def check_proposal(
             f"({len(config.recipient_allowlist)} allowed)"
         )
 
-    # Price impact: expected_cost / amount as a rough pct proxy in the stub.
+    if transfer_fee_usd < 0 or transfer_fee_usd > expected_cost or transfer_fee_usd > config.transfer_fee_budget_usd:
+        reasons.append('transfer fee exceeds configured budget or quoted total cost')
+    # A disclosed fixed transfer fee has its own budget; it is not swap slippage.
     if amount_usd > 0:
-        impact_pct = (expected_cost / amount_usd) * 100.0
+        impact_pct = (max(0.0, expected_cost - transfer_fee_usd) / amount_usd) * 100.0
         if impact_pct > config.price_impact_limit_pct:
             reasons.append(
                 f"price impact {impact_pct:.3f}% exceeds limit {config.price_impact_limit_pct}%"

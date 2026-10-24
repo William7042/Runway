@@ -27,3 +27,11 @@ A human-approved 2 PYUSD conversion settled 1.996651 USDC; a separate Gateway or
 ## Transfer-fee investigation
 
 Unsigned PYUSD/Solana probes at gross 5, 6, and 10 all encode a 1 PYUSD fee (seller receives 4, 5, and 9). API create/GET fee and received remain zero while awaiting signature. Preview pricing now uses simulated wallet changes and flags invoice underpayment before enqueue. See TRANSFER_FEES.md; no funds moved during this investigation. Transfer hold and normal fee/spend limits remain unchanged.
+
+## Current policy — $1 transfer fee authorized
+
+The human authorized a $1 transfer-fee budget and removal of the old blanket hold. A fresh unsigned live draft verified **6 PYUSD gross debit → 5 PYUSD seller net + 1 PYUSD fee**. No funds were moved. The prior hold evidence is retained with its explicit resolution; any new settlement mismatch can establish a new hold.
+
+Payment proposals treat `amount_usd` as the seller invoice and show the gross transfer amount in `path`, the fee in `expected_cost`, and seller net/fee/total debit in approval flags. Gross-up is derived from simulation, not a hardcoded deduction. Lower fees reduce the gross debit; fees above $1 or changed recipient net require a fresh plan. Approval still precedes every signature. Invoice caps remain separate from the authorized fee allowance. Existing swap slippage/fee checks remain active.
+
+`RUNWAY_PAYMENT_FEE_USD=1` controls the disclosed transfer allowance. The live agent checks that allowance separately from swap price impact, using the deterministic router plan rather than language-model text. The shared proposal fields and original payment interface are unchanged.

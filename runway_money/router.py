@@ -15,7 +15,8 @@ from .client import TrueMarketsError
 class PaymentRouter:
     def __init__(self, backend, queue, sellers, *, state=None, prices=None,
                  modes=None, max_payment_usd='1', max_impact_bps='100',
-                 max_drift_bps='200', max_fee_usd='0.01', top_up_targets=None):
+                 max_drift_bps='200', max_fee_usd='0.01', top_up_targets=None,
+                 payment_fee_budget_usd='1'):
         self.backend, self.queue, self.sellers = backend, queue, sellers
         self.state, self.prices = state or State(), prices or ReferencePrices()
         self.modes = modes or {}
@@ -24,6 +25,7 @@ class PaymentRouter:
         self.max_drift = dec(max_drift_bps)
         self.max_fee = dec(max_fee_usd)
         self.top_up_targets = top_up_targets or {}
+        self.payment_fee_budget = dec(payment_fee_budget_usd)
 
     def propose_payment(self, buyer, seller, amount_usd, purpose, source):
         return self._payment(buyer, seller, amount_usd, purpose, source, enqueue=True)
@@ -74,39 +76,51 @@ class PaymentRouter:
                         flags.append('Demo stablecoin USD reference assumes $1; depeg risk is not priced')
                     quote, drift = None, None
                     transfer_fee = Decimal(0)
+                    transfer_gross = pay_qty
                     address = policy.get('address') or self.backend.recipient(seller, target['chain'])
                     if held['id'] == target['id']:
                         input_qty, cost = pay_qty, Decimal(0)
                         path = [{'type': 'transfer', 'asset': target['symbol'], 'amount': str(pay_qty)}]
                         if hasattr(self.backend, 'preview_transfer'):
-                            preview = self.backend.preview_transfer(buyer, target['id'], pay_qty, address)
-                            if preview['to'] != address or preview['asset_id'] != target['id']:
-                                raise ValueError('Transfer preview changed the destination or asset')
-                            transfer_fee = dec(preview['fee']) * tp
-                            cost += transfer_fee
-                            if dec(preview['received']) < pay_qty:
-                                raise ValueError(f'Transfer would deliver {preview["received"]} {target["symbol"]} '
-                                    f'for a {pay_qty} invoice; simulated fee {preview["fee"]}. '
-                                    'A separately approved gross-up and fee budget are required')
+                            transfer_gross = pay_qty + (self.payment_fee_budget / tp).quantize(quantum, rounding=ROUND_UP)
+                            for attempt in range(3):
+                                preview = self.backend.preview_transfer(buyer, target['id'], transfer_gross, address)
+                                if preview['to'] != address or preview['asset_id'] != target['id']:
+                                    raise ValueError('Transfer preview changed the destination or asset')
+                                fee_qty = dec(preview['fee'])
+                                transfer_fee = fee_qty * tp
+                                if transfer_fee > self.payment_fee_budget:
+                                    raise ValueError('Transfer fee exceeds the approved $1 fee budget')
+                                required_gross = pay_qty + fee_qty
+                                if required_gross == transfer_gross and dec(preview['received']) == pay_qty:
+                                    break
+                                transfer_gross = required_gross
+                            else:
+                                raise ValueError('Transfer fees did not converge to the exact seller net')
+                            input_qty, cost = transfer_gross, transfer_fee
+                            path[0]['amount'] = str(transfer_gross)
                     else:
-                        input_qty = (amount / hp).quantize(Decimal(10) ** -held['decimals'], rounding=ROUND_UP)
+                        transfer_fee = self.payment_fee_budget
+                        transfer_gross = pay_qty + (transfer_fee / tp).quantize(quantum, rounding=ROUND_UP)
+                        input_qty = ((amount + transfer_fee) / hp).quantize(Decimal(10) ** -held['decimals'], rounding=ROUND_UP)
                         quote = self.backend.quote(buyer, held, target, input_qty)
                         # Size to fund the invoice, including fee and a small rounding buffer.
-                        if dec(quote['output']) < pay_qty:
-                            input_qty *= pay_qty / dec(quote['output']) * Decimal('1.00001')
+                        if dec(quote['output']) < transfer_gross:
+                            input_qty *= transfer_gross / dec(quote['output']) * Decimal('1.00001')
                             input_qty = input_qty.quantize(Decimal(10) ** -held['decimals'], rounding=ROUND_DOWN)
                             quote = self.backend.quote(buyer, held, target, input_qty)
-                        if dec(quote['output']) < pay_qty:
+                        if dec(quote['output']) < transfer_gross:
                             raise ValueError('Quoted proceeds do not cover the payment')
                         fee_asset = catalog[quote['fee_asset_id']]
                         fee_usd = dec(quote['fee']) * dec(self.prices(fee_asset))
                         # Mark-to-reference cost bounds price impact plus service fee.
-                        cost = max(Decimal(0), input_qty * hp - dec(quote['output']) * tp) + fee_usd
-                        impact = cost / (input_qty * hp) * 10000
+                        swap_cost = max(Decimal(0), input_qty * hp - dec(quote['output']) * tp) + fee_usd
+                        cost = swap_cost + transfer_fee
+                        impact = swap_cost / (input_qty * hp) * 10000
                         if impact > self.max_impact:
                             raise ValueError('Price impact plus fees exceeds policy limit')
                         path = [{'type': 'swap', 'asset': held['symbol'], 'amount': str(input_qty)},
-                                {'type': 'transfer', 'asset': target['symbol'], 'amount': str(pay_qty)}]
+                                {'type': 'transfer', 'asset': target['symbol'], 'amount': str(transfer_gross)}]
                         stock = held if held.get('reference_symbol') else target if target.get('reference_symbol') else None
                         if stock:
                             on_chain = (dec(quote['output']) * tp / input_qty if stock is held
@@ -116,7 +130,7 @@ class PaymentRouter:
                             drift = {'on_chain_price': float(on_chain), 'reference_price': float(reference), 'bps': float(gap)}
                             if gap > self.max_drift:
                                 raise ValueError('Stock price drift exceeds threshold; wait or pay from stablecoin')
-                    if cost > self.max_fee:
+                    if cost > self.payment_fee_budget + (self.max_fee if quote else 0):
                         raise ValueError('Estimated total cost exceeds demo fee budget')
                     input_quantum = Decimal(10) ** -held['decimals']
                     if input_qty != input_qty.quantize(input_quantum):
@@ -125,13 +139,16 @@ class PaymentRouter:
                         raise ValueError('Insufficient available holding')
                     if mode == 'endowment':
                         gains = spendable_gains(self.backend.history(buyer), held['id'], holding['total'], hp)
-                        if input_qty * hp + cost > gains:
+                        if input_qty * hp > gains:
                             raise ValueError('Payment would consume principal rather than unrealized gains')
                     flags.append('Transfer fees must fit the approved cost; signing stops if they increase')
+                    flags.append(f'Seller receives {pay_qty} {target["symbol"]}; '
+                                 f'transfer fee ${transfer_fee}; total source debit {input_qty} {held["symbol"]}')
                     if mode == 'auto_top_up':
                         flags.append('Any allocation buy-back requires a separate human-approved limit order')
                     plan = {'source_asset': held, 'target_asset': target, 'recipient': address,
                             'input_qty': str(input_qty), 'pay_qty': str(pay_qty),
+                            'transfer_gross_qty': str(transfer_gross),
                             'transfer_fee_usd': str(transfer_fee),
                             'quote': quote, 'mode': mode, 'source_price': str(hp), 'target_price': str(tp)}
                     candidates.append((cost, path, plan, drift, flags))
@@ -200,7 +217,7 @@ class PaymentRouter:
                 quote = plan['quote']
                 if quote:
                     fresh = self.backend.quote(buyer, plan['source_asset'], plan['target_asset'], dec(plan['input_qty']))
-                    if dec(fresh['output']) < dec(plan['pay_qty']) or dec(fresh['fee']) > dec(quote['fee']):
+                    if dec(fresh['output']) < dec(plan.get('transfer_gross_qty', plan['pay_qty'])) or dec(fresh['fee']) > dec(quote['fee']):
                         raise ValueError('Quote worsened; fresh approval required')
                     guard()
                     prepared = self.backend.prepare_order(buyer, fresh)
@@ -209,7 +226,7 @@ class PaymentRouter:
                     current_quote = prepared.get('quote', {})
                     if not prepared.get('order_id') or current_quote.get('issues'):
                         raise ValueError('Order is not executable')
-                    if (dec(current_quote['qty_out']) < dec(plan['pay_qty']) or
+                    if (dec(current_quote['qty_out']) < dec(plan.get('transfer_gross_qty', plan['pay_qty'])) or
                         dec(current_quote['qty']) != dec(plan['input_qty']) or
                         current_quote.get('base_asset') != fresh['raw'].get('base_asset') or
                         current_quote.get('quote_asset') != fresh['raw'].get('quote_asset') or
@@ -231,17 +248,18 @@ class PaymentRouter:
                 guard()
                 available = next((dec(b['available']) for b in self.backend.balances(buyer)
                                   if b['asset_id'] == plan['target_asset']['id']), Decimal(0))
-                if available < dec(plan['pay_qty']):
+                transfer_gross = plan.get('transfer_gross_qty', plan['pay_qty'])
+                if available < dec(transfer_gross):
                     raise ValueError('Insufficient confirmed balance for transfer')
                 transfer = self.backend.prepare_transfer(buyer, plan['target_asset']['id'],
-                                                         plan['pay_qty'], plan['recipient'])
+                                                         transfer_gross, plan['recipient'])
                 plan['transfer'] = public(transfer)
                 self.state.write(proposal_id, plan)
                 fee = dec(transfer['fee']) * dec(plan['target_price'])
                 # Seller, asset, chain and quantity must match the reviewed plan.
                 if (transfer['to'] != plan['recipient'] or transfer['asset_id'] != plan['target_asset']['id'] or
                     transfer['chain'] != plan['target_asset']['chain'] or
-                    dec(transfer['qty']) != dec(plan['pay_qty']) or transfer['qty_unit'] != 'base' or
+                    dec(transfer['qty']) != dec(transfer_gross) or transfer['qty_unit'] != 'base' or
                     fee > dec(plan.get('transfer_fee_usd', 0))):
                     raise ValueError('Prepared transfer differs from approved amount, destination, or cost')
                 plan['phase'] = 'transfer_submitting'
@@ -261,7 +279,7 @@ class PaymentRouter:
                            'sent': str(sent), 'quoted_transfer_fee_usd': plan.get('transfer_fee_usd', '0'),
                            'actual_transfer_fee_usd': str(actual_fee),
                            'shortfall': str(max(Decimal(0), expected - received))}
-                mismatch = (received < expected or sent != expected or
+                mismatch = (received != expected or sent != dec(transfer_gross) or
                             actual_fee > dec(plan.get('transfer_fee_usd', 0)))
                 if mismatch:
                     quality['needs_reconciliation'] = True
@@ -503,5 +521,6 @@ def build_router():
                          config['sellers'], modes=config.get('modes'),
                          top_up_targets=config.get('top_up_targets'),
                          max_payment_usd=os.getenv('RUNWAY_MAX_PAYMENT_USD', '1'),
+                         payment_fee_budget_usd=os.getenv('RUNWAY_PAYMENT_FEE_USD', '1'),
                          max_impact_bps=os.getenv('RUNWAY_MAX_IMPACT_BPS', '100'),
                          max_drift_bps=os.getenv('RUNWAY_MAX_DRIFT_BPS', '200'))

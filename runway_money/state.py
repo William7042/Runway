@@ -60,8 +60,15 @@ class State:
         self.write('__execution_hold__', evidence)
 
     def check_hold(self):
-        if self.path('__execution_hold__').exists():
+        if self.path('__execution_hold__').exists() and not self.read('__execution_hold__').get('resolved'):
             raise RuntimeError('Live execution is on hold after a quote/fill mismatch; reconcile first')
+
+    def release_hold(self, reason):
+        import time
+        if self.path('__execution_hold__').exists():
+            evidence = self.read('__execution_hold__')
+            evidence.update(resolved=True, resolution=reason, resolved_at=time.time())
+            self.write('__execution_hold__', evidence)
 
     @contextmanager
     def lock(self, key):

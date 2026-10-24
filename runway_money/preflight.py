@@ -99,7 +99,7 @@ class SolanaPreflight:
                 '_simulation': result, '_keys': keys}
 
     def verify(self, prepared, wallet, *, input_asset, output_asset,
-               max_input, min_output, recipient=None):
+               max_input, min_output, recipient=None, max_output=None):
         result = self.inspect(prepared, wallet)
         deltas = result['token_deltas']
         # Native SOL uses the wallet lamport delta; wrapped SOL uses token balance.
@@ -127,6 +127,8 @@ class SolanaPreflight:
                 received += (Decimal(sim['postBalances'][idx]) - Decimal(sim['preBalances'][idx])) / 10**9
             if received < Decimal(str(min_output)):
                 raise ValueError('Simulated recipient receives less than approved; hidden fee or wrong recipient')
+            if max_output is not None and received > Decimal(str(max_output)):
+                raise ValueError('Simulated recipient receives more than approved; fresh fee quote required')
         result.pop('_simulation')
         result.pop('_keys')
         return result

@@ -19,3 +19,8 @@ def draft_payment(buyer, seller, amount_usd, purpose, source):
         plan['proposal'], plan['fingerprint'] = data, fingerprint(data)
         router.state.write(data['id'], plan)
     return Proposal.model_validate(data)
+
+
+def transfer_fee_usd(proposal_id):
+    """Read the deterministic router plan, never infer fees from model-written text."""
+    return float(get_router().state.read(proposal_id)['transfer_fee_usd'])

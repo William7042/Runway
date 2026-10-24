@@ -42,3 +42,12 @@ def test_live_agent_blocks_actual_asset_not_in_policy(setup, monkeypatch):
         queue=object())
     assert p is None and result.blocked and verifier is None
     assert queue.proposals == {}
+
+
+def test_fixed_transfer_fee_does_not_mask_excessive_swap_cost():
+    from agent.policy import check_proposal
+    policy=PolicyConfig(agent_id='fee-budget',max_single_payment_usd=5,asset_allowlist={'PYUSD'})
+    args=dict(config=policy,buyer='test',seller='test2',amount_usd=5,assets_in_path=['PYUSD'],
+              purpose='Pay seller',source='human request',transfer_fee_usd=1,record_velocity=False)
+    assert check_proposal(**args,expected_cost=1).ok
+    assert check_proposal(**args,expected_cost=1.2).blocked

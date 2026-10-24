@@ -91,7 +91,7 @@ def setup(tmp_path, monkeypatch):
     monkeypatch.setenv('DRY_RUN', '1')
     backend, queue = Backend(), Queue()
     router = PaymentRouter(backend, queue, {'seller': {'accepted_asset_ids': ['usd']}},
-                           state=State(tmp_path), prices=lambda asset: Decimal(1))
+                           state=State(tmp_path), prices=lambda asset: Decimal(1), payment_fee_budget_usd='0')
     return router, backend, queue
 
 
@@ -447,3 +447,40 @@ def test_legacy_defi_trade_is_confirmed_by_chain_audit_not_gateway_lookup(setup,
     monkeypatch.setenv('DRY_RUN','0')
     r=router.execute(p['id'])
     assert r['status']=='executed' and r['tx_hash']=='confirmed-legacy-tx'
+
+
+def test_disclosed_one_dollar_fee_grosses_up_and_pays_full_invoice(setup, monkeypatch):
+    router, backend, queue = setup
+    router.max_payment = Decimal(5)
+    router.payment_fee_budget = Decimal(1)
+    backend.preview_transfer = lambda buyer, asset, qty, recipient: {
+        'asset_id':asset,'to':recipient,'fee':'1','received':str(Decimal(str(qty))-1)}
+    p = router.propose_payment('buyer','seller',5,'Pay seller','human request')
+    assert p['amount_usd']==5 and p['expected_cost']==1 and p['path'][0]['amount']=='6.000000'
+    assert any('Seller receives 5.000000' in flag for flag in p['flags'])
+    approve(queue,p)
+    backend.confirm = lambda *args: {'status':'completed','tx_hash':'grossed-up-tx',
+                                    'sent':'6','received':'5','fee':'1'}
+    monkeypatch.setenv('DRY_RUN','0')
+    receipt=router.execute(p['id'])
+    assert receipt['status']=='executed' and receipt['fill']['execution_quality']['shortfall']=='0'
+
+
+def test_transfer_fee_above_one_dollar_remains_blocked(setup):
+    router, backend, queue = setup
+    router.payment_fee_budget = Decimal(1)
+    backend.preview_transfer = lambda buyer, asset, qty, recipient: {
+        'asset_id':asset,'to':recipient,'fee':'1.01','received':'0'}
+    with pytest.raises(ValueError,match='fee budget'):
+        propose(router)
+    assert queue.proposals=={} and backend.submissions==[]
+
+
+def test_releasing_hold_retains_evidence_and_new_mismatch_reblocks(setup):
+    router, _, _ = setup
+    router.state.hold({'reason':'original fee mismatch'})
+    router.state.release_hold('Human authorized $1 transfer fee with net/gross checks')
+    router.state.check_hold()
+    assert router.state.read('__execution_hold__')['reason']=='original fee mismatch'
+    router.state.hold({'reason':'new unapproved discrepancy'})
+    with pytest.raises(RuntimeError,match='hold'): router.state.check_hold()

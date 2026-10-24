@@ -241,8 +241,9 @@ class TrueMarketsBackend:
             raise ValueError('Live preflight currently supports Solana only')
         wallet = next(w['address'] for w in self.user(buyer)['wallets'] if w['chain_family'] == 'solana')
         result = SolanaPreflight(os.getenv('RUNWAY_SOLANA_RPC', 'https://api.mainnet-beta.solana.com')).verify(
-            prepared, wallet, input_asset=plan['source_asset'], output_asset=plan['target_asset'],
-            max_input=plan['input_qty'], min_output=plan['pay_qty'],
+            prepared, wallet, input_asset=plan['target_asset'] if kind == 'transfers' else plan['source_asset'], output_asset=plan['target_asset'],
+            max_input=plan.get('transfer_gross_qty', plan['pay_qty']) if kind == 'transfers' else plan['input_qty'], min_output=plan['pay_qty'],
+            max_output=plan['pay_qty'] if kind == 'transfers' else None,
             recipient=plan['recipient'] if kind == 'transfers' else None)
         self._checked_digests.add(result['digest'])
         return {k: v for k, v in result.items() if k != 'token_deltas'}
