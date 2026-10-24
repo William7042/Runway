@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "runway": {
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "args": ["${workspaceFolder}/mcp_server/server.py"],
+      "env": {
+        "APPROVAL_QUEUE_URL": "http://localhost:8000",
+        "DRY_RUN": "1",
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    }
+  }
+}
