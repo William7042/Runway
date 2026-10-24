@@ -16,3 +16,19 @@ data/ledger/*.json
 *.receipt.json
 TM_KEY*
 **/secrets/
+
+# Person A money layer
+# Credentials: never add key material to git
+.env
+.env.*
+!.env.example
+truemarkets-*-key-*.json
+*private*key*
+*.pem
+*.key
+secrets/
+.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+.runway/
