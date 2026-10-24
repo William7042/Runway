@@ -12,12 +12,11 @@ if not exist "queue_service\.venv\Scripts\python.exe" (
 echo Installing Python packages...
 "queue_service\.venv\Scripts\python.exe" -m pip install -q -r "queue_service\requirements.txt" || (echo pip install failed. & pause & exit /b 1)
 
-if not exist "frontend\node_modules" (
-  echo Installing UI packages, this takes a minute the first time...
-  pushd frontend
-  call npm install --no-audit --no-fund || (echo npm install failed. & popd & pause & exit /b 1)
-  popd
-)
+REM Always check UI packages: teammates may have added new ones (fast when nothing changed).
+echo Checking UI packages...
+pushd frontend
+call npm install --no-audit --no-fund || (echo npm install failed. & popd & pause & exit /b 1)
+popd
 
 start "Runway queue (port 8000)" /D "%~dp0queue_service" cmd /k ".venv\Scripts\python.exe -m uvicorn app:app --reload --host 0.0.0.0 --port 8000"
 start "Runway UI (port 5173)" /D "%~dp0frontend" cmd /k "npm run dev"
