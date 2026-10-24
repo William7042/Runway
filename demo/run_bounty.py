@@ -39,28 +39,7 @@ def main() -> int:
     b, funding = bounty_mod.fund_bounty(b.id, user_request=user_q, queue=q)
     print(f"Funding proposal: {getattr(funding, 'id', funding)} escrow={b.escrow_wallet}")
 
-    # Demo harness approves funding so claim can proceed.
-    if funding is not None:
-        q.decide(funding.id, "approve", reason="demo: fund escrow")
-
-    b = bounty_mod.claim_bounty(b.id, claimant="wallet_bounty_worker")
-    print(f"Claimed by {b.claimant}")
-
-    b = bounty_mod.submit_work(
-        b.id,
-        "wallet_bounty_worker",
-        "Founders: prior exit at LogiCo 2019; no litigation found in mock sources. verified.",
-    )
-    print(f"Submitted. checker={bounty_mod.run_checker(b.id)}")
-
-    b, payout = bounty_mod.verify_and_payout(
-        b.id,
-        human_approved=True,
-        user_request=user_q,
-        notes="Human confirms checker + submission look good",
-        queue=q,
-    )
-    print(f"Payout proposal: {getattr(payout, 'id', payout)} status={b.status.value}")
+    print("Waiting for a human decision in the approval queue. No automatic funding or payout.")
     return 0
 
 

@@ -2,7 +2,7 @@
 
 Hackathon project: AI agents hold a portfolio and pay for data / bounties / specialists via True Markets, with a human approving every order.
 
-See [DESIGN.md](DESIGN.md) for the full design. This repo currently ships **Person B (agent layer)** plus local stubs for Person A's router and Person C's approval queue so the agent loop can demo before those land.
+See [DESIGN.md](DESIGN.md) for the full design. The repo includes the agent layer, Person C's dashboard/queue, and the True Markets money layer. The live agent adapter and a real human-approved SOL order are verified; offline stubs remain available. See [MONEY.md](MONEY.md) for execution limits and the transfer hold.
 
 ## Person B — Agent layer
 
@@ -34,3 +34,7 @@ DRY_RUN=1 python -m demo.attack_script        # policy block + verifier flag
 ```
 
 **Safety:** demo wallets hold a few dollars. `DRY_RUN=1` means nothing is signed or sent. Technical demo, not financial advice. No auto-approve mode.
+
+## Person A — Money layer
+
+See [MONEY.md](MONEY.md) for True Markets setup, approval-gated execution, treasury modes, and safety tests; [ACCESS.md](ACCESS.md) records live access findings. Person C's real queue is in `product/queue_service/`. Start it with `STUB_EXECUTOR=0` for money-layer integration.

@@ -6,11 +6,13 @@ import BountyBoard from "./components/BountyBoard.jsx";
 import Activity from "./components/Activity.jsx";
 import Landing from "./components/Landing.jsx";
 import DemoControls from "./components/DemoControls.jsx";
+import TwoAgents from "./components/TwoAgents.jsx";
 import { usd, ago, parseFlag } from "./format.js";
 
-// Routes: "#home" (landing, default), "#desk", "#activity", "#bounties"
+// Routes: "#home" (landing, default), "#desk", "#agents", "#activity", "#bounties"
 const TABS = [
   ["desk", "Approvals"],
+  ["agents", "Two agents"],
   ["activity", "Activity"],
   ["bounties", "Bounties"],
 ];
@@ -207,6 +209,8 @@ export default function App() {
           <Activity proposals={state.proposals} balances={state.balances} />
         </main>
       )}
+
+      {route === "agents" && <TwoAgents />}
 
       {route === "bounties" && (
         <main className="page">

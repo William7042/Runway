@@ -19,7 +19,6 @@ python -m sellers.run_all
 
 # Terminal 3 — research desk (proposes ~3 payments, does NOT execute)
 DRY_RUN=1 python -m demo.run_research
-DRY_RUN=1 python -m demo.run_research --auto-approve --execute-approved  # harness only
 
 # Attack demo — policy blocks drain; flags show fetched_page source
 DRY_RUN=1 python -m demo.attack_script

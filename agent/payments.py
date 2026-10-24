@@ -7,6 +7,7 @@ The agent NEVER calls execute(). Person C (or demo harness) approves; Person A e
 from __future__ import annotations
 
 import logging
+import os
 from typing import Optional
 
 from agent.models import Proposal
@@ -43,8 +44,9 @@ def propose_and_enqueue(
     Verifier mismatches add a flag; they do not block.
     """
     # Pre-check with provisional path assets (stub always uses NVDAc + USDC).
-    provisional_assets = ["NVDAc", preferred_asset]
-    provisional_cost = round(amount_usd * 0.003, 4)
+    live = os.getenv('RUNWAY_MODE', 'stub') == 'live'
+    provisional_assets = [] if live else ["NVDAc", preferred_asset]
+    provisional_cost = 0 if live else round(amount_usd * 0.003, 4)
 
     policy_result = check_proposal(
         config=policy,
@@ -55,20 +57,32 @@ def propose_and_enqueue(
         expected_cost=provisional_cost,
         purpose=purpose,
         source=source,
+        record_velocity=not live,
     )
     if policy_result.blocked:
         logger.warning("Blocked before propose_payment: %s", policy_result.reasons)
         return None, policy_result, None
 
-    # Person A stub — never True Markets from here.
-    proposal = router_stub.propose_payment(
-        buyer=buyer,
-        seller=seller,
-        amount_usd=amount_usd,
-        purpose=purpose,
-        source=source,
-        preferred_asset=preferred_asset,
-    )
+    # Money-layer adapter owns all True Markets access.
+    if live:
+        from runway_money.agent_adapter import draft_payment, transfer_fee_usd
+        proposal = draft_payment(buyer, seller, amount_usd, purpose, source)
+        # The router's real assets and fees must satisfy policy before enqueue.
+        policy_result = check_proposal(config=policy, buyer=buyer, seller=seller,
+            amount_usd=amount_usd, assets_in_path=[s.asset for s in proposal.path],
+            expected_cost=proposal.expected_cost, purpose=purpose, source=source,
+            transfer_fee_usd=transfer_fee_usd(proposal.id))
+        if policy_result.blocked:
+            return None, policy_result, None
+    else:
+        proposal = router_stub.propose_payment(
+            buyer=buyer,
+            seller=seller,
+            amount_usd=amount_usd,
+            purpose=purpose,
+            source=source,
+            preferred_asset=preferred_asset,
+        )
 
     path_summary = " -> ".join(f"{s.type}:{s.asset}:{s.amount}" for s in proposal.path)
     v = verify(
@@ -82,7 +96,8 @@ def propose_and_enqueue(
     if v.is_mismatch:
         proposal.flags.append(v.flag_text())
         # Re-store so stub + queue see flags.
-        router_stub._PROPOSALS[proposal.id] = proposal
+        if not live:
+            router_stub._PROPOSALS[proposal.id] = proposal
 
     q = queue or QueueClient()
     stored = q.create(proposal)

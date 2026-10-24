@@ -1,0 +1,15 @@
+.agent-page { max-width: 1040px; width: 100%; margin: 0 auto; }
+.agent-roles { display: grid; grid-template-columns: 1fr 32px 1fr; gap: 18px; align-items: center; margin: 24px 0; }
+.agent-roles section { border-top: 3px solid var(--mint); padding: 18px 0; }
+.agent-roles p { color: var(--text-2); max-width: 360px; margin-top: 8px; }
+.agent-arrow { font-size: 26px; color: var(--text-3); }
+.agent-compose, .agent-run { border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; background: var(--surface); }
+.agent-compose textarea { width: 100%; font: inherit; color: var(--text); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 8px; padding: 14px; resize: vertical; margin: 12px 0; }
+.agent-compose textarea:focus { outline: 2px solid var(--mint); outline-offset: 2px; }
+.agent-action { display: flex; justify-content: space-between; gap: 20px; align-items: center; margin-bottom: 16px; }
+.agent-approval { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 20px 0; }
+.agent-timeline { list-style: none; margin: 20px 0; padding: 0 0 0 18px; border-left: 2px solid var(--mint); }
+.agent-timeline li { padding: 0 0 24px 10px; }
+.agent-timeline li:last-child { padding-bottom: 0; }
+.agent-timeline p { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .agent-roles { grid-template-columns: 1fr; gap: 0; } .agent-arrow { display: none; } .agent-action { align-items: flex-start; flex-direction: column; } .agent-compose, .agent-run { padding: 18px; } }

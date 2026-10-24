@@ -7,7 +7,6 @@ Usage:
   # terminal 1: uvicorn stubs.queue_service:app --port 8000
   # terminal 2:
   DRY_RUN=1 python -m demo.run_research
-  DRY_RUN=1 python -m demo.run_research --auto-approve   # demo harness only
 """
 
 from __future__ import annotations
@@ -36,16 +35,6 @@ def main() -> int:
         "--question",
         default="Is Acme Robotics legit? Check filings, prior coverage, and founders.",
     )
-    parser.add_argument(
-        "--auto-approve",
-        action="store_true",
-        help="Demo harness: approve pending proposals (NOT available to the agent)",
-    )
-    parser.add_argument(
-        "--execute-approved",
-        action="store_true",
-        help="Call Person A stub execute() on approved proposals (agent never does this)",
-    )
     args = parser.parse_args()
 
     ensure_registry()
@@ -63,21 +52,6 @@ def main() -> int:
         print(f"    purpose: {p.purpose}")
         print(f"    source:  {p.source}")
         print(f"    flags:   {p.flags}")
-
-    if args.auto_approve:
-        print("\n=== Demo harness auto-approving (human stand-in) ===")
-        for p in pending:
-            decided = queue.decide(p.id, "approve", reason="demo harness")
-            print(f"  approved {decided.id}")
-            if args.execute_approved:
-                # Sync stub status then execute — money layer responsibility.
-                router_stub.mark_status(decided.id, decided.status)
-                # Stub may not have the proposal if queue created it fresh; ensure present.
-                if router_stub.get_proposal(decided.id) is None:
-                    router_stub._PROPOSALS[decided.id] = decided
-                receipt = router_stub.execute(decided.id)
-                queue.receipt(decided.id, receipt)
-                print(f"  executed {decided.id} tx={receipt.tx_hash} status={receipt.status}")
 
     enqueued = len(run.enqueued)
     print(f"\nDone: {enqueued} proposals enqueued (target: 3).")
