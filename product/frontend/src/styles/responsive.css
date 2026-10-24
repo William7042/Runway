@@ -84,3 +84,10 @@ img, svg, canvas, video { max-width: 100%; }
   .topbar .status .pill-warn { padding: 1px 5px; }
   .treasury-chip { padding: 4px 10px; }
 }
+
+/* Keep the tab underline on the header's bottom edge, as before the responsive pass. */
+@media (min-width: 761px) {
+  .topbar { height: 60px; padding-top: 0; padding-bottom: 0; }
+  .topbar .tabs { align-self: stretch; height: auto; }
+  .topbar .tab { display: flex; align-items: center; height: 100%; }
+}
