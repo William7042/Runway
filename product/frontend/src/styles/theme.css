@@ -221,3 +221,45 @@ mark.injected, .injected { background: var(--bad); color: #000; padding: 0 3px; 
 .treasury-banner { background: linear-gradient(135deg, #1b2210 0%, var(--surface-solid) 55%); }
 .l-final { background: linear-gradient(180deg, #171d0c, var(--surface-solid)); }
 .step-key { background: var(--lime); }
+/* Green-tinted blocks stay frosted glass, so the cursor light shows through them */
+.treasury-banner {
+  background: linear-gradient(135deg, rgba(210, 255, 57, 0.12) 0%, rgba(18, 20, 24, 0.45) 60%);
+  backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2);
+}
+.l-final {
+  background: linear-gradient(180deg, rgba(210, 255, 57, 0.10), rgba(18, 20, 24, 0.45));
+  backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2);
+}
+/* Hover glow: lime instead of the old navy shadow, and easier to see */
+:root {
+  --glow: 0 0 0 1px rgba(210, 255, 57, 0.45), 0 0 28px -4px rgba(210, 255, 57, 0.30), 0 18px 40px -18px rgba(210, 255, 57, 0.35);
+  --shadow-md: var(--glow);
+}
+.problem:hover, .step-card:hover, .spec:hover, .stat:hover, .bounty:hover, .listing:hover, .flow-node:hover {
+  border-color: rgba(210, 255, 57, 0.55); box-shadow: var(--glow);
+}
+.step-key:hover { box-shadow: 0 0 0 1px var(--lime), 0 0 36px -2px rgba(210, 255, 57, 0.55); }
+/* Hover glow fades in gradually (it used to snap on) and has a softer falloff */
+:root {
+  --glow: 0 0 0 1px rgba(210, 255, 57, 0.40), 0 0 18px -2px rgba(210, 255, 57, 0.22), 0 0 48px -6px rgba(210, 255, 57, 0.18);
+  --glow-off: 0 0 0 1px rgba(210, 255, 57, 0), 0 0 18px -2px rgba(210, 255, 57, 0), 0 0 48px -6px rgba(210, 255, 57, 0);
+  --glow-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.problem, .step-card, .spec, .stat, .bounty, .listing, .flow-node {
+  box-shadow: var(--glow-off);
+  transition: box-shadow 0.9s var(--glow-ease), border-color 0.9s var(--glow-ease), transform 0.6s var(--ease), background 0.4s;
+}
+.problem:hover, .step-card:hover, .spec:hover, .stat:hover, .bounty:hover, .listing:hover, .flow-node:hover {
+  transition: box-shadow 0.7s var(--glow-ease), border-color 0.7s var(--glow-ease), transform 0.6s var(--ease), background 0.4s;
+}
+.step-key { box-shadow: 0 0 0 1px rgba(210, 255, 57, 0), 0 0 36px -2px rgba(210, 255, 57, 0); }
+.step-key:hover { box-shadow: 0 0 0 1px rgba(210, 255, 57, 1), 0 0 36px -2px rgba(210, 255, 57, 0.5); }
+/* Same light sweep as the Sell/Wallet stat cards, on the landing page's cards (not the lime "You decide" card) */
+.problem, .step-card { position: relative; overflow: hidden; }
+.problem::before, .step-card:not(.step-key)::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(120deg, transparent 30%, rgba(210, 255, 57, 0.06) 50%, transparent 70%);
+  transform: translateX(-100%); transition: transform 0.9s var(--ease);
+}
+.problem:hover::before, .step-card:not(.step-key):hover::before { transform: translateX(100%); }
+.problem > *, .step-card > * { position: relative; }

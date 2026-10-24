@@ -22,3 +22,29 @@
 .stepper-item.refund.done .dot { background: var(--bad); }
 
 .submission { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; color: var(--text-2); }
+
+.deadline-field { display: flex; flex-direction: column; gap: 8px; flex: 1 1 100%; }
+.deadline-field .label { margin: 0; }
+.deadline-row { display: grid; grid-template-columns: 1fr 120px; gap: 8px; }
+.deadline-row input, .deadline-row select { width: 100%; color-scheme: dark; }
+.deadline-row select:disabled { opacity: 0.5; }
+.deadline-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.deadline-preview { font-size: var(--fs-label); color: var(--text-2); }
+.time-input { position: relative; }
+.time-input input { width: 100%; padding-right: 30px; }
+.time-input input:disabled { opacity: 0.5; }
+.time-toggle {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); border: 0; background: transparent;
+  color: var(--text-2); font-size: 12px; padding: 6px; cursor: pointer;
+}
+.time-list {
+  position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0; max-height: 220px; overflow-y: auto;
+  margin: 0; padding: 4px; list-style: none; background: var(--surface-solid, #111317); border: 1px solid var(--border-strong);
+  border-radius: 8px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+.time-list li { padding: 7px 10px; border-radius: 6px; font-size: var(--fs-small); cursor: pointer; color: var(--text-2); }
+.time-list li:hover, .time-list li.hi { background: var(--surface-2); color: var(--text); }
+.time-list li.selected { color: #000; background: var(--mint); font-weight: 600; }
+.time-err { margin-top: 4px; font-size: 11px; color: var(--bad); }
+.deadline-row { grid-template-columns: 1fr 130px; }
+.deadline-row { align-items: start; }
