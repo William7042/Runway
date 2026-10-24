@@ -11,9 +11,8 @@ import DemoControls from "./components/DemoControls.jsx";
 import TwoAgents from "./components/TwoAgents.jsx";
 import Backdrop from "./components/Backdrop.jsx";
 import Balances from "./components/Balances.jsx";
-import DriftGauge from "./components/DriftGauge.jsx";
 import ReceiptsFeed from "./components/Receipts.jsx";
-import { usd, ago, parseFlag } from "./format.js";
+import { usd, ago, parseFlag, buyerWallet } from "./format.js";
 
 // Tabs follow the demo story left to right: give a task → approve → hire → sell → see the money.
 // Routes: "#home" (landing, default), "#tasks", "#desk", "#hire", "#hire/bounties", "#sell", "#wallet"
@@ -111,8 +110,8 @@ export default function App() {
   const decided = state.proposals
     .filter((p) => p.status !== "pending")
     .sort((a, b) => (b.receipt?.at || b.decision?.at || 0) - (a.receipt?.at || a.decision?.at || 0));
-  const ra = state.balances?.["research-agent"];
-  const treasury = ra ? (ra.assets || []).reduce((a, x) => a + Number(x.usd_value || 0), 0) : null;
+  const buyer = buyerWallet(state.balances);
+  const treasury = buyer.total;
 
   async function decide(id, decision, reason) {
     await api.decide(id, decision, reason);
@@ -143,8 +142,8 @@ export default function App() {
         </nav>
         <div className="status">
           {treasury !== null && (
-            <button className="treasury-chip" onClick={() => go("wallet")} title="Research agent wallet">
-              <span className="tc-label">Agent wallet</span>
+            <button className="treasury-chip" onClick={() => go("wallet")} title={`${buyer.id}: ${buyer.partial ? "priced assets only; unpriced holdings are listed in the wallet" : "wallet balance"}. Updated ${buyer.w?.snapshot_at ? new Date(buyer.w.snapshot_at).toLocaleTimeString() : "from demo data"}`}>
+              <span className="tc-label">{buyer.id}{buyer.w?.simulated !== false ? " · demo" : buyer.partial ? " · priced assets" : " · wallet"}</span>
               <span className="tc-amount num">{usd(treasury, 2)}</span>
             </button>
           )}
@@ -262,13 +261,7 @@ export default function App() {
 
           <aside className="desk-side">
             <Balances balances={state.balances} layout="stack" />
-            <DriftGauge
-              config={state.config}
-              onChange={async (v) => {
-                await api.setConfig({ drift_pct: v });
-                refresh();
-              }}
-            />
+
             <ReceiptsFeed
               receipts={state.proposals
                 .filter((p) => p.receipt)

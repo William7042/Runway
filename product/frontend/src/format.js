@@ -67,3 +67,14 @@ export const SOURCE_LABEL = {
   seller_response: "Seller response",
   bounty_board: "Bounty board",
 };
+
+// Select the funded buyer rather than the seeded research-agent example.
+export const buyerWallet = (balances) => {
+  const id = import.meta.env?.VITE_BUYER_ID || "test";
+  const real = balances?.[id];
+  const w = real?.simulated === false ? real : balances?.["research-agent"];
+  const assets = w?.assets || [];
+  const priced = assets.filter(a => a.usd_value !== null && a.usd_value !== undefined && Number.isFinite(Number(a.usd_value)));
+  const total = priced.length ? priced.reduce((sum, a) => sum + Number(a.usd_value), 0) : null;
+  return { id: real?.simulated === false ? id : "research-agent", w, total, partial: priced.length < assets.length };
+};

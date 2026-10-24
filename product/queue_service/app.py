@@ -373,10 +373,22 @@ async def lifespan(_app: FastAPI):
     with Store():
         pass  # creates and seeds the store on first run
     task = asyncio.create_task(_stub_loop()) if STUB_EXECUTOR else None
+    balance_task = None
+    if os.getenv('RUNWAY_BALANCE_SYNC', '0') == '1':
+        from runway_money.balances import watch
+        def publish_balance(user, snapshot):
+            with Store() as s:
+                s['balances'][user] = snapshot
+        balance_task = asyncio.create_task(watch(publish_balance, interval=5))
     print(f"Runway queue: data={DATA_FILE}  stub_executor={'ON' if STUB_EXECUTOR else 'OFF'}")
     yield
-    if task:
-        task.cancel()
+    for background in (task, balance_task):
+        if background:
+            background.cancel()
+            try:
+                await background
+            except asyncio.CancelledError:
+                pass
 
 
 app = FastAPI(title="Runway approval queue", lifespan=lifespan)
@@ -385,7 +397,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 @app.get("/health")
 def health():
-    return {"ok": True, "stub_executor": STUB_EXECUTOR}
+    return {"ok": True, "stub_executor": STUB_EXECUTOR, "balance_sync": os.getenv("RUNWAY_BALANCE_SYNC", "0") == "1"}
 
 
 @app.post("/proposals", status_code=201)
