@@ -1,0 +1,57 @@
+/* Specialists page. */
+
+.treasury-banner {
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; flex-wrap: wrap;
+  background: var(--navy-grad); color: #FDFDFF; border-radius: 18px; padding: 28px 32px; position: relative; overflow: hidden;
+}
+.treasury-banner::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
+  background-image: radial-gradient(rgba(253, 253, 255, 0.14) 1px, transparent 1px); background-size: 18px 18px;
+  mask-image: linear-gradient(to left, black, transparent 70%);
+}
+.tb-label { font-size: var(--fs-small); color: rgba(253, 253, 255, 0.7); font-weight: 500; }
+.tb-amount { font-size: 48px; font-weight: 600; letter-spacing: -0.04em; line-height: 1.05; margin-top: 4px; }
+.tb-sub { font-size: var(--fs-small); color: rgba(253, 253, 255, 0.65); margin-top: 4px; }
+.tb-assets { display: flex; flex-direction: column; gap: 6px; position: relative; z-index: 1; }
+.tb-asset { display: grid; grid-template-columns: 10px 60px 80px 60px; gap: 10px; align-items: center; font-size: var(--fs-small); }
+.tb-asset .muted { color: rgba(253, 253, 255, 0.6); text-align: right; }
+
+.asset-dot { width: 8px; height: 8px; border-radius: 99px; display: inline-block; background: var(--text-3); }
+.dot-nvdac { background: var(--mint); }
+.dot-usdc { background: #6E8FB8; }
+.treasury-banner .dot-usdc { background: #9DB4D3; }
+
+.spec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+.spec { gap: 18px; }
+.spec-top { display: flex; gap: 14px; align-items: center; }
+.spec-avatar {
+  width: 44px; height: 44px; border-radius: 12px; background: var(--good-bg); color: var(--good);
+  display: grid; place-items: center; font-weight: 700; font-size: 15px; flex-shrink: 0;
+}
+.spec h3 { font-size: var(--fs-title); font-weight: 600; letter-spacing: -0.01em; }
+.spec-id { font-size: var(--fs-label); color: var(--text-3); display: flex; gap: 6px; align-items: center; }
+
+.spec-wallet { background: var(--surface-2); border-radius: 12px; padding: 16px 18px; }
+.spec-wallet-label { font-size: var(--fs-label); color: var(--text-3); font-weight: 500; }
+.spec-wallet-amount { font-size: 34px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.1; margin-top: 2px; }
+.spec-wallet-assets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-label); font-weight: 500;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 3px 10px; color: var(--text-2);
+}
+
+.spec-cap { color: var(--text-2); line-height: 1.55; }
+.spec-facts { margin: 0; display: grid; gap: 10px; }
+.spec-facts > div { display: flex; justify-content: space-between; gap: 16px; font-size: var(--fs-small); }
+.spec-facts dt { color: var(--text-3); }
+.spec-facts dd { margin: 0; font-weight: 500; text-align: right; }
+.spec-rep { display: flex; gap: 18px; flex-wrap: wrap; font-size: var(--fs-small); color: var(--text-2); border-top: 1px solid var(--border); padding-top: 14px; }
+.spec-pending {
+  border: 0; font: inherit; font-size: var(--fs-small); font-weight: 600; text-align: left; cursor: pointer;
+  background: var(--warn-bg); color: var(--warn); border-radius: 10px; padding: 10px 12px;
+}
+.spec-pending:hover { filter: brightness(0.97); }
+@media (max-width: 640px) {
+  .tb-amount { font-size: 38px; }
+  .treasury-banner { padding: 22px; }
+}

@@ -10,7 +10,7 @@ export default function DemoControls({ config, health, api, refresh, onReset }) 
       {open && (
         <div className="demo-panel">
           <div className="demo-head">
-            <span className="strong">Demo controls</span>
+            <span className="strong">Presenter controls</span>
             <button className="btn btn-ghost small" onClick={() => setOpen(false)} aria-label="Close demo controls">
               Close
             </button>
@@ -48,8 +48,8 @@ export default function DemoControls({ config, health, api, refresh, onReset }) 
           {health?.stub_executor && <div className="demo-note">Stub router is on: receipts are simulated.</div>}
         </div>
       )}
-      <button className="demo-fab" onClick={() => setOpen(!open)}>
-        Demo
+      <button className="demo-fab" onClick={() => setOpen(!open)} title="Presenter controls">
+        Controls
       </button>
     </div>
   );

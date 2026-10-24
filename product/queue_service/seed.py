@@ -150,7 +150,22 @@ def seed_balances():
             "label": "Filings specialist (simulated seller)",
             "treasury_mode": "pay_in_kind",
             "simulated": True,
-            "assets": [{"asset": "USDC", "amount": 0.40, "usd_value": 0.40}],
+            "assets": [
+                {"asset": "USDC", "amount": 0.40, "usd_value": 0.40},
+                {"asset": "NVDAc", "amount": 0.0011, "usd_value": 0.20},
+            ],
+        },
+        "premium-archive": {
+            "label": "Premium archive (simulated seller)",
+            "treasury_mode": "pay_in_kind",
+            "simulated": True,
+            "assets": [{"asset": "USDC", "amount": 1.75, "usd_value": 1.75}],
+        },
+        "x-sentiment": {
+            "label": "X sentiment analyst (simulated seller)",
+            "treasury_mode": "pay_in_kind",
+            "simulated": True,
+            "assets": [{"asset": "USDC", "amount": 0.90, "usd_value": 0.90}],
         },
     }
 
@@ -173,6 +188,43 @@ def seed_bounties():
             "history": [{"status": "open", "note": "Posted by research-agent"}],
         }
     ]
+
+
+SPECIALISTS = [
+    {
+        "id": "filings-agent",
+        "name": "Filings specialist",
+        "capability": "Summarizes SEC filings (10-K, 10-Q, 8-K) for any US-listed company.",
+        "private_asset": "Indexed archive of every filing since 2015",
+        "price_usd": 0.05,
+        "unit": "per summary",
+        "accepts": ["USDC", "NVDAc"],
+        "simulated": True,
+        "base": {"jobs": 41, "earned_usd": 2.05, "refunds": 0},
+    },
+    {
+        "id": "premium-archive",
+        "name": "Premium data archive",
+        "capability": "Quarterly segment revenue and margins going back 10 years.",
+        "private_asset": "Licensed fundamentals dataset",
+        "price_usd": 0.25,
+        "unit": "per query",
+        "accepts": ["USDC"],
+        "simulated": True,
+        "base": {"jobs": 17, "earned_usd": 4.25, "refunds": 1},
+    },
+    {
+        "id": "x-sentiment",
+        "name": "X sentiment analyst",
+        "capability": "Reads live posts on X about a ticker and scores the sentiment, powered by Grok.",
+        "private_asset": "Live X search access",
+        "price_usd": 0.10,
+        "unit": "per report",
+        "accepts": ["USDC"],
+        "simulated": True,
+        "base": {"jobs": 9, "earned_usd": 0.90, "refunds": 0},
+    },
+]
 
 
 DEFAULT_CONFIG = {
