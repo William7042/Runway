@@ -1,0 +1,66 @@
+/* Responsive layer, loaded after theme.css. Targets 320px phones up to
+   2560px desktops at DPR 1 (incl. Windows at 150% scaling, ~1707px). */
+
+html { scrollbar-gutter: stable; -webkit-text-size-adjust: 100%; }
+body { overflow-x: clip; }
+:root {
+  --display: "Wix Madefor Display", Inter, "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --mono-f: "IBM Plex Mono", "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  /* Bounded by width and height so short or very wide screens don't blow it up. */
+  --fs-display: clamp(34px, min(6vw, 10vh), 96px);
+  --gutter: clamp(16px, 3vw, 48px);
+}
+
+/* One centred column; ultra-wide screens don't stretch. */
+.desk, .page, .landing { max-width: 1440px; padding-left: var(--gutter); padding-right: var(--gutter); }
+.topbar { padding-left: max(var(--gutter), calc((100vw - 1440px) / 2 + var(--gutter))); padding-right: max(var(--gutter), calc((100vw - 1440px) / 2 + var(--gutter))); }
+
+/* Headlines: never leave their box, never sit on the text below. */
+.page-title h1, .hero h1, .l-title { line-height: 1; overflow-wrap: break-word; padding-left: 0.04em; max-width: 100%; }
+.page-title h1 { letter-spacing: -0.05em; }
+.page-title { gap: 14px; }
+.hero h1 { letter-spacing: -0.062em; margin-bottom: 0.2em; }
+.hero-sub { position: relative; }
+@media (max-width: 1100px) {
+  .hero-accent { white-space: normal; }
+  .hero h1 { font-size: clamp(34px, 8vw, 72px); }
+}
+@media (max-width: 480px) { .hero h1 { font-size: clamp(30px, 9.5vw, 44px); letter-spacing: -0.04em; } }
+
+/* Tables and wide rows scroll inside themselves. */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+.ledger { min-width: 640px; }
+img, svg, canvas, video { max-width: 100%; }
+
+@media (max-width: 760px) {
+  .desk, .bounty-layout, .problem-grid, .diff-grid, .blocked-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .page, .desk { padding-top: 20px; }
+  /* Nav: one row that scrolls sideways. */
+  .topbar { flex-wrap: wrap; gap: 0 12px; height: auto; padding-top: 8px; }
+  .tabs { order: 3; width: 100%; overflow-x: auto; scrollbar-width: none; gap: 20px; height: 44px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: none; min-height: 44px; }
+  .tab::after { bottom: 8px; }
+  /* Tap targets. */
+  .btn, .upnext-row, .demo-fab, summary, .voice-pill { min-height: 44px; }
+  .btn.small { min-height: 40px; }
+  /* Glass is expensive on phones. */
+  .card, .panel, .stat, .upnext-list, .problem, .step-card, .demo-panel, .demo-fab { backdrop-filter: none; -webkit-backdrop-filter: none; background-color: rgba(18, 20, 24, 0.92); }
+  .topbar { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .backdrop .orb { filter: blur(40px); }
+  .cursor-glow { display: none; }
+}
+@media (max-width: 420px) { .stats { grid-template-columns: 1fr; } }
+
+/* Sticky header: opaque enough that scrolled content can't be read through it. */
+.topbar {
+  position: sticky; top: 0; z-index: 30; min-height: 60px; height: auto;
+  background: rgba(7, 8, 10, 0.78); border-bottom: 1px solid rgba(160, 165, 177, 0.16);
+  backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .topbar { background: rgba(7, 8, 10, 0.96); } }
+@media (max-width: 760px) { .topbar { backdrop-filter: blur(12px) saturate(1.2); -webkit-backdrop-filter: blur(12px) saturate(1.2); background: rgba(7, 8, 10, 0.82); } }
+.hero { max-width: none; }
+@media (max-width: 1000px) { .desk-side { position: static; } }
+@media (max-width: 760px) { .status { margin-left: auto; flex-wrap: wrap; justify-content: flex-end; min-width: 0; gap: 6px; } .topbar > * { min-width: 0; } }
