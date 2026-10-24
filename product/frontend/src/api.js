@@ -26,6 +26,7 @@ export const api = {
   claim: (id, claimant) => req("POST", `/bounties/${id}/claim`, { claimant }),
   submit: (id, submission) => req("POST", `/bounties/${id}/submit`, { submission }),
   verify: (id, decision, reason = "") => req("POST", `/bounties/${id}/verify`, { decision, reason }),
+  specialists: () => req("GET", "/specialists"),
   attack: () => req("POST", "/demo/attack"),
   reset: () => req("POST", "/demo/reset"),
 };

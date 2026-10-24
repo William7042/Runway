@@ -272,6 +272,46 @@ def _stub_receipt(p: dict) -> dict:
     }
 
 
+def _seller_key(seller: str) -> str:
+    return str(seller).split(" ")[0]
+
+
+def _apply_simulated_balances(s: dict, p: dict) -> None:
+    """Stub mode only: move SIMULATED wallet balances so the demo shows money moving.
+    Never touches a wallet Person A has marked as real (simulated: false)."""
+    bal = s["balances"]
+    buyer = bal.get(p.get("buyer"))
+    seller = bal.get(_seller_key(p.get("seller", "")))
+
+    def asset_row(w, asset):
+        for a in w.setdefault("assets", []):
+            if a["asset"] == asset:
+                return a
+        row = {"asset": asset, "amount": 0.0, "usd_value": 0.0}
+        w["assets"].append(row)
+        return row
+
+    for step in p.get("path") or []:
+        amount = float(step.get("amount") or 0)
+        if buyer and buyer.get("simulated"):
+            src = asset_row(buyer, step["asset"])
+            unit = (src["usd_value"] / src["amount"]) if src["amount"] else (1.0 if step["asset"] == "USDC" else 0)
+            if step["type"] == "swap":
+                src["amount"] = round(max(0.0, src["amount"] - amount), 8)
+                src["usd_value"] = round(src["amount"] * unit, 4)
+                to = asset_row(buyer, step.get("to_asset", "USDC"))
+                to["amount"] = round(to["amount"] + amount * unit, 8)
+                to["usd_value"] = round(to["usd_value"] + amount * unit, 4)
+                continue
+            src["amount"] = round(max(0.0, src["amount"] - amount), 8)
+            src["usd_value"] = round(src["amount"] * unit, 4)
+        if step["type"] == "transfer" and seller and seller.get("simulated"):
+            dst = asset_row(seller, step["asset"])
+            usd_in = float(p.get("amount_usd") or 0)
+            dst["amount"] = round(dst["amount"] + amount, 8)
+            dst["usd_value"] = round(dst["usd_value"] + usd_in, 4)
+
+
 async def _stub_loop():
     while True:
         await asyncio.sleep(0.5)
@@ -281,6 +321,7 @@ async def _stub_loop():
                     decided = (p.get("decision") or {}).get("at", 0)
                     if p["status"] == "approved" and "receipt" not in p and _now() - decided >= STUB_DELAY_S:
                         _write_receipt(s, p, _stub_receipt(p))
+                        _apply_simulated_balances(s, p)
         except Exception as e:  # never let the demo helper crash the service
             print("stub executor error:", e)
 
@@ -473,6 +514,32 @@ def verify(bid: str, body: VerifyIn):
         b["verification"] = {"decision": body.decision, "reason": body.reason, "at": _now()}
         b["history"].append({"status": b["status"], "note": note, "at": _now()})
         return b
+
+
+# ---------------------------------------------------------------- specialists
+
+@app.get("/specialists")
+def specialists():
+    """Registry of specialist sellers. Reputation = seeded history + what this ledger shows (not self-reported)."""
+    with Store() as s:
+        out = []
+        for sp in seed.SPECIALISTS:
+            mine = [p for p in s["proposals"] if str(p.get("seller", "")).startswith(sp["id"])]
+            done = [p for p in mine if p["status"] == "executed"]
+            jobs = sp["base"]["jobs"] + len(done)
+            refunds = sp["base"]["refunds"] + len([p for p in mine if p["status"] == "failed"])
+            wallet = s["balances"].get(sp["id"], {"assets": []})
+            out.append({
+                **{k: v for k, v in sp.items() if k != "base"},
+                "jobs": jobs,
+                "earned_usd": round(sp["base"]["earned_usd"] + sum(float(p.get("amount_usd") or 0) for p in done), 4),
+                "refunds": refunds,
+                "success_rate": round(100 * (jobs - refunds) / jobs, 1) if jobs else None,
+                "pending": len([p for p in mine if p["status"] == "pending"]),
+                "wallet": wallet,
+                "wallet_usd": round(sum(float(a.get("usd_value") or 0) for a in wallet.get("assets", [])), 4),
+            })
+        return out
 
 
 # ---------------------------------------------------------------- demo helpers
