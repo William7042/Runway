@@ -13,7 +13,7 @@ import { usd, ago, parseFlag } from "./format.js";
 // Routes: "#home" (landing, default), "#desk", "#agents", "#activity", "#bounties"
 const TABS = [
   ["desk", "Approvals"],
-  ["agents", "Two agents"],
+  ["agents", "Request"],
   ["activity", "Activity"],
   ["bounties", "Bounties"],
 ];
