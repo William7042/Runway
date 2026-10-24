@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { usd, amt } from "../format.js";
+import { usd, amt, buyerWallet } from "../format.js";
 import "../styles/specialists.css";
 
 const treasuryOf = (balances) => {
-  const w = balances?.test || balances?.["research-agent"];
-  const total = (w?.assets || []).reduce((a, x) => a + Number(x.usd_value || 0), 0);
-  return { w, total, spendable: w?.cost_basis_usd !== undefined ? Math.max(0, total - w.cost_basis_usd) : total };
+  const buyer = buyerWallet(balances);
+  const { w, total } = buyer;
+  return { ...buyer, spendable: total === null ? null : w?.cost_basis_usd !== undefined ? Math.max(0, total - w.cost_basis_usd) : total };
 };
 
 /** Specialist agents the research agent can hire, with their wallets front and center. */
@@ -57,10 +57,11 @@ export default function Specialists({ api, balances, refreshKey, onOpenApprovals
       </details>
       <section className="treasury-banner">
         <div>
-          <div className="tb-label">Research agent can spend</div>
+          <div className="tb-label">{t.id} · {t.partial ? "priced subtotal" : "available balance"}</div>
           <div className="tb-amount num">{usd(t.spendable, 2)}</div>
           <div className="tb-sub">
-            of {usd(t.total, 2)} in its wallet · principal {usd(t.w?.cost_basis_usd, 2)} stays invested
+            {t.w?.cost_basis_usd !== undefined ? `Principal ${usd(t.w.cost_basis_usd, 2)} stays invested` : t.partial ? "Unpriced holdings are shown separately below" : "Real wallet balance"}
+            {t.w?.snapshot_at && <> · updated {new Date(t.w.snapshot_at).toLocaleTimeString()}</>}
           </div>
         </div>
         <div className="tb-assets">
