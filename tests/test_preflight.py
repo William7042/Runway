@@ -56,3 +56,22 @@ def test_multitransaction_bridge_is_rejected_without_rpc_or_signing():
     prepared['payloads'] *= 2
     with pytest.raises(ValueError,match='bridge'):
         guard.inspect(prepared,owner)
+
+
+def test_transfer_preview_uses_simulated_fee_not_zero_pending_api_fields(monkeypatch):
+    from runway_money.backend import TrueMarketsBackend
+    owner, recipient = 'buyer-wallet', 'seller-wallet'
+    simulation = {'preTokenBalances':[balance(owner,'mint',10000000), balance(recipient,'mint',0)],
+                  'postTokenBalances':[balance(owner,'mint',5000000),balance(recipient,'mint',4000000)]}
+    monkeypatch.setattr(SolanaPreflight,'inspect',lambda *args:{
+        'token_deltas':{'mint':Decimal('-5')}, 'native_delta':Decimal(0), '_simulation':simulation})
+    backend = TrueMarketsBackend(client=object())
+    backend.assets = lambda:[{'id':'asset','address':'mint','chain':'solana','symbol':'PYUSD'}]
+    backend.user = lambda name:{'wallets':[{'chain_family':'solana','address':owner}]}
+    backend.prepare_transfer = lambda *args:{'asset_id':'asset','to':recipient,'fee':'0','received':'0',
+                                            'status':'awaiting_signature','payloads':[]}
+    preview = backend.preview_transfer('buyer','asset','5',recipient)
+    assert preview['api_reported_fee'] == '0' and preview['api_reported_received'] == '0'
+    assert preview['fee'] == '1' and preview['received'] == '4' and preview['sent'] == '5'
+    assert preview['fee_source'] == 'unsigned_solana_simulation'
+    assert 'payloads' not in preview

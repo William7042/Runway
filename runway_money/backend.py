@@ -174,14 +174,25 @@ class TrueMarketsBackend:
                           'qty_unit': 'base', 'to': recipient})
 
     def preview_transfer(self, buyer, asset_id, quantity, recipient):
-        # Unsigned preparation verifies vendor minima and fees before asking a
-        # human to approve an otherwise impossible pay-in-kind payment.
+        # Awaiting-signature fee/received fields are not reliable quote fields.
+        # Inspect the actual unsigned transaction's wallet economics instead.
+        from .preflight import SolanaPreflight, token_deltas
         prepared = self.prepare_transfer(buyer, asset_id, quantity, recipient)
         asset = next(a for a in self.assets() if a['id'] == asset_id)
-        self.preflight(buyer, 'transfers', prepared, {
-            'source_asset':asset, 'target_asset':asset, 'input_qty':str(quantity),
-            'pay_qty':str(quantity), 'recipient':recipient})
-        return public(prepared)
+        if asset['chain'] != 'solana' or asset['symbol'] == 'SOL':
+            raise ValueError('Fee-aware transfer preview currently supports Solana tokens only')
+        wallet = next(w['address'] for w in self.user(buyer)['wallets'] if w['chain_family'] == 'solana')
+        evidence = SolanaPreflight(os.getenv('RUNWAY_SOLANA_RPC', 'https://api.mainnet-beta.solana.com')).inspect(prepared, wallet)
+        changes = evidence['token_deltas']
+        sent = -changes.get(asset['address'], Decimal(0))
+        received = token_deltas(evidence['_simulation'], recipient).get(asset['address'], Decimal(0))
+        if (sent != dec(quantity) or not 0 <= received <= sent or evidence['native_delta'] < 0 or
+            any(v < 0 and mint != asset['address'] for mint,v in changes.items())):
+            raise ValueError('Transfer has unexpected wallet debits or recipient amounts')
+        return {**public(prepared), 'api_reported_fee':prepared['fee'],
+                'api_reported_received':prepared['received'],
+                'sent':str(sent), 'received':str(received), 'fee':str(sent-received),
+                'fee_source':'unsigned_solana_simulation'}
 
     def submit(self, buyer, kind, prepared, guard):
         if dry_run():

@@ -56,3 +56,7 @@ The agent/product work was fetched from origin/main at c290847. Person C's real 
 - PYUSD/USDC: the legacy DeFi quote/trade endpoint accepts a 2 PYUSD sell as one unsigned transaction, despite PYUSD not being an orderable Gateway asset. A $1 quote was below minimum. Approved execution spent 2 PYUSD and returned 1.996651 USDC (chain-audited).
 - SOL/USDC: funded USDC removes the bridge. Gateway created a single-payload SOL order; human-approved execution spent 1 USDC and returned 0.00945721 SOL (chain-audited). The receipt is executed with hash 5QFRqXWGZ1EXLngMqreRifvpBxpT14BgcUKMPdRTJrXCHaf5fgWBRVzXS9AaVonfu8Wb5GVoca4zqLHCh3B8pRck.
 - Raw quotes overstated net SOL receipts; unsigned simulation exposed the difference. The human authorized a one-off cost allowance up to $0.07 before approving this order. Normal limits stay unchanged. No NVDAc access was found.
+
+## Transfer-fee investigation
+
+Unsigned PYUSD/Solana probes at gross 5, 6, and 10 all encode a 1 PYUSD fee (seller receives 4, 5, and 9). API create/GET fee and received remain zero while awaiting signature. Preview pricing now uses simulated wallet changes and flags invoice underpayment before enqueue. See TRANSFER_FEES.md; no funds moved during this investigation. Transfer hold and normal fee/spend limits remain unchanged.

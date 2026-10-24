@@ -84,6 +84,10 @@ class PaymentRouter:
                                 raise ValueError('Transfer preview changed the destination or asset')
                             transfer_fee = dec(preview['fee']) * tp
                             cost += transfer_fee
+                            if dec(preview['received']) < pay_qty:
+                                raise ValueError(f'Transfer would deliver {preview["received"]} {target["symbol"]} '
+                                    f'for a {pay_qty} invoice; simulated fee {preview["fee"]}. '
+                                    'A separately approved gross-up and fee budget are required')
                     else:
                         input_qty = (amount / hp).quantize(Decimal(10) ** -held['decimals'], rounding=ROUND_UP)
                         quote = self.backend.quote(buyer, held, target, input_qty)
