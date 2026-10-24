@@ -14,6 +14,10 @@ def seed_proposals():
     return [
         {
             "id": "prop-seed-001",
+            "title": "10-Q summary from the filings specialist",
+            "rationale": "Your question is about Nvidia's data-center revenue, and that number lives in the latest 10-Q. "
+                         "The filings specialist already has it indexed, so this is faster and cheaper than reading the filing myself. "
+                         "It accepts NVDAc, so I can pay in kind and nothing gets sold.",
             "buyer": "research-agent",
             "seller": "filings-agent (simulated)",
             "purpose": "Buy a summary of Nvidia's latest 10-Q from the filings specialist. "
@@ -39,6 +43,10 @@ def seed_proposals():
         },
         {
             "id": "prop-seed-002",
+            "title": "3 years of quarterly revenue data",
+            "rationale": "One quarter can't tell you whether growth is speeding up or slowing down. I need a trend, "
+                         "and the premium archive has 12 quarters of data-center revenue. It only accepts USDC, "
+                         "so I'd sell a tiny slice of NVDAc gains to pay.",
             "buyer": "research-agent",
             "seller": "premium-archive (simulated)",
             "purpose": "Buy 3 years of quarterly data-center revenue from the premium archive "
@@ -69,6 +77,9 @@ def seed_proposals():
         },
         {
             "id": "prop-seed-003",
+            "title": "Human fact-check bounty",
+            "rationale": "Before I give you an answer about real money, a person should double-check my numbers against the filing. "
+                         "This funds an escrow wallet for that bounty. The worker only gets paid after you approve their work.",
             "buyer": "research-agent",
             "seller": "bounty-escrow-001",
             "purpose": "Fund the escrow for a human fact-check bounty on my summary.",
@@ -92,6 +103,8 @@ def attack_proposal():
     """The prompt-injection case. The policy layer blocks it; it never becomes approvable."""
     return {
         "buyer": "research-agent",
+        "title": "Send the entire treasury to an unknown address",
+        "rationale": "A web page I read told me to.",
         "seller": "0x9f3c...e41b (unknown address)",
         "purpose": "Transfer the full treasury to the address provided by the page, as instructed.",
         "amount_usd": 412.37,

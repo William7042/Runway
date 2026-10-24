@@ -3,6 +3,8 @@ import { usd, amt, parseFlag, costTotal, driftPct, sourceInfo, SOURCE_LABEL, ago
 import { DriftBar } from "./DriftGauge.jsx";
 import "../styles/desk.css";
 
+export const titleOf = (p) => p.title || `Pay ${p.seller}`;
+
 export function Flags({ flags }) {
   if (!flags || flags.length === 0) return null;
   return (
@@ -20,32 +22,49 @@ export function Flags({ flags }) {
   );
 }
 
-export function Source({ source }) {
-  const s = sourceInfo(source);
+// Tokenized stocks use a lowercase "c" suffix, e.g. NVDAc, TSLAc.
+const isTokenized = (asset) => /^[A-Z]+c$/.test(asset || "");
+
+/** Wallet → (sell) → pay → seller, drawn as a row of nodes. */
+function PaymentFlow({ p }) {
+  const sells = (p.path || []).filter((s) => s.type === "swap");
+  const pays = (p.path || []).filter((s) => s.type === "transfer");
+  const nodes = [{ kind: "wallet", top: "From", main: p.buyer }];
+  sells.forEach((s) => nodes.push({ kind: "sell", top: "Sell", main: `${amt(s.amount)} ${s.asset}`, sub: s.to_asset ? `for ${s.to_asset}` : null }));
+  pays.forEach((s) =>
+    nodes.push({ kind: "pay", top: sells.length ? "Pay" : "Pay in kind", main: `${amt(s.amount)} ${s.asset}`, sub: sells.length ? null : "nothing is sold" })
+  );
+  nodes.push({ kind: "seller", top: "To", main: p.seller });
   return (
-    <div className={`source source-${s.kind}`}>
-      <span className="source-kind">{SOURCE_LABEL[s.kind] || s.kind}</span>
-      {s.text && <span className="source-text">“{s.text}”</span>}
+    <div className="flow" aria-label="How this payment moves">
+      {nodes.map((n, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <div className="flow-arrow" aria-hidden="true" />}
+          <div className={`flow-node flow-${n.kind}`}>
+            <div className="flow-top">{n.top}</div>
+            <div className="flow-main num">{n.main}</div>
+            {n.sub && <div className="flow-sub">{n.sub}</div>}
+          </div>
+        </React.Fragment>
+      ))}
     </div>
   );
 }
 
-// Tokenized stocks use a lowercase "c" suffix, e.g. NVDAc, TSLAc.
-const sellsTokenizedStock = (path) => (path || []).some((s) => s.type === "swap" && /^[A-Z]+c$/.test(s.asset));
-
-export default function ProposalCard({ p, config, onDecide }) {
+export default function ProposalCard({ p, config, onDecide, position, total }) {
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
-  const sells = (p.path || []).filter((s) => s.type === "swap");
-  const pays = (p.path || []).filter((s) => s.type === "transfer");
   const cost = costTotal(p.expected_cost);
   const d = driftPct(p.drift);
   const live = config?.drift_pct;
   const threshold = config?.drift_threshold_pct ?? 2;
-  const driftDanger = sellsTokenizedStock(p.path) && live !== undefined && live > threshold;
+  const sellsStock = (p.path || []).some((s) => s.type === "swap" && isTokenized(s.asset));
+  const driftDanger = sellsStock && live !== undefined && live > threshold;
+  const src = sourceInfo(p.source);
+  const why = p.rationale || p.purpose;
 
   async function decide(decision) {
     setBusy(true);
@@ -59,113 +78,104 @@ export default function ProposalCard({ p, config, onDecide }) {
   }
 
   return (
-    <article className="card pc">
-      <div className="pc-top">
-        <div className="pc-who">
-          <div className="pc-seller">{p.seller}</div>
-          <div className="pc-sub">
-            Requested by {p.buyer} · {ago(p.created_at)}
+    <article className="card decision">
+      <div className="dc-head">
+        <div className="dc-head-text">
+          <div className="dc-eyebrow">
+            {total > 1 && <span className="dc-pos">{position} of {total}</span>}
+            <span>{p.buyer} is asking · {ago(p.created_at)}</span>
             {p.bounty_role && <span className="pill">bounty {p.bounty_role}</span>}
           </div>
+          <h2 className="dc-title">{titleOf(p)}</h2>
+          <div className="dc-to">to {p.seller}</div>
         </div>
-        <div className="pc-amount num">{usd(p.amount_usd)}</div>
+        <div className="dc-amount num">{usd(p.amount_usd)}</div>
       </div>
 
-      <p className="pc-purpose">{p.purpose}</p>
+      <div className="reason">
+        <div className="reason-label">Why the agent wants this</div>
+        <p>{why}</p>
+      </div>
 
       <Flags flags={p.flags} />
-
-      <dl className="kv">
-        <div>
-          <dt>Sells</dt>
-          <dd>
-            {sells.length === 0 ? (
-              <span className="subtle">Nothing, paid in kind</span>
-            ) : (
-              sells.map((s, i) => (
-                <div key={i} className="num">
-                  {amt(s.amount)} {s.asset}
-                </div>
-              ))
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Pays</dt>
-          <dd>
-            {pays.map((s, i) => (
-              <div key={i} className="num">
-                {amt(s.amount)} {s.asset}
-              </div>
-            ))}
-          </dd>
-        </div>
-        <div>
-          <dt>Expected cost</dt>
-          <dd className="num">
-            {usd(cost, 4)}
-            {p.expected_cost && typeof p.expected_cost === "object" && (
-              <div className="kv-note">
-                {usd(p.expected_cost.price_impact_usd, 4)} impact · {usd(p.expected_cost.fees_usd, 4)} fees
-              </div>
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Price drift</dt>
-          <dd>{d === null ? <span className="subtle">Not applicable</span> : <DriftBar value={d} threshold={threshold} />}</dd>
-        </div>
-      </dl>
-
       {driftDanger && (
         <div className="flag flag-block">
-          <span className="flag-label">Drift now {live.toFixed(1)}%</span>
-          <span>Above the {threshold}% limit. The router will refuse to sell tokenized stock at this gap.</span>
+          <span className="flag-label">Price drift {live.toFixed(1)}%</span>
+          <span>NVDAc is trading too far from the real Nvidia price. The router will refuse to sell at this gap.</span>
         </div>
       )}
 
-      <Source source={p.source} />
+      <PaymentFlow p={p} />
 
-      {p.alternatives?.length > 0 && (
-        <details className="alts">
-          <summary>
-            {p.alternatives.length} other path{p.alternatives.length > 1 ? "s" : ""} considered
-          </summary>
-          {p.alternatives.map((a, i) => (
-            <div key={i} className="alt">
-              <div className="alt-path num">
-                {(a.path || []).map((s) => `${s.type === "swap" ? "sell" : "pay"} ${amt(s.amount)} ${s.asset}`).join("  →  ")}
-              </div>
-              <div className="alt-why">{a.rejected_reason}</div>
+      <div className="dc-facts">
+        <div>
+          <span className="fact-label">Fees and price impact</span>
+          <span className="fact-value num">{usd(cost, 4)}</span>
+        </div>
+        {d !== null && (
+          <div className="fact-drift">
+            <span className="fact-label">Price drift</span>
+            <DriftBar value={d} threshold={threshold} />
+          </div>
+        )}
+        <div>
+          <span className="fact-label">Triggered by</span>
+          <span className={`fact-value ${src.kind === "fetched_page" ? "danger" : ""}`}>{SOURCE_LABEL[src.kind] || src.kind}</span>
+        </div>
+      </div>
+
+      <details className="alts dc-more">
+        <summary>More details</summary>
+        <div className="more-grid">
+          {src.text && (
+            <div>
+              <div className="fact-label">What triggered it</div>
+              <div className="more-quote">“{src.text}”</div>
             </div>
-          ))}
-        </details>
-      )}
+          )}
+          {p.expected_cost && typeof p.expected_cost === "object" && (
+            <div>
+              <div className="fact-label">Cost breakdown</div>
+              <div className="num">
+                {usd(p.expected_cost.price_impact_usd, 4)} price impact + {usd(p.expected_cost.fees_usd, 4)} fees
+              </div>
+            </div>
+          )}
+          {p.alternatives?.length > 0 && (
+            <div>
+              <div className="fact-label">Other ways to pay it considered</div>
+              {p.alternatives.map((a, i) => (
+                <div key={i} className="alt">
+                  <div className="alt-path num">
+                    {(a.path || []).map((s) => `${s.type === "swap" ? "sell" : "pay"} ${amt(s.amount)} ${s.asset}`).join("  →  ")}
+                  </div>
+                  <div className="alt-why">{a.rejected_reason}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </details>
 
       {err && <div className="error">{err}</div>}
 
       {!rejecting ? (
-        <div className="pc-actions">
-          <button className="btn btn-ghost" disabled={busy} onClick={() => setRejecting(true)}>
+        <div className="dc-actions">
+          <button className="btn btn-ghost btn-lg" disabled={busy} onClick={() => setRejecting(true)}>
             Reject
           </button>
-          <button className="btn btn-primary" disabled={busy} onClick={() => decide("approve")}>
-            Approve and sign
+          <button className="btn btn-primary btn-lg" disabled={busy} onClick={() => decide("approve")}>
+            Approve and pay {usd(p.amount_usd)}
           </button>
         </div>
       ) : (
         <div className="reject-box">
-          <textarea
-            autoFocus
-            placeholder="Reason (optional). The agent is told why."
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-          <div className="pc-actions">
-            <button className="btn btn-ghost" disabled={busy} onClick={() => setRejecting(false)}>
+          <textarea autoFocus placeholder="Reason (optional). The agent is told why." value={reason} onChange={(e) => setReason(e.target.value)} />
+          <div className="dc-actions">
+            <button className="btn btn-ghost btn-lg" disabled={busy} onClick={() => setRejecting(false)}>
               Cancel
             </button>
-            <button className="btn btn-danger" disabled={busy} onClick={() => decide("reject")}>
+            <button className="btn btn-danger btn-lg" disabled={busy} onClick={() => decide("reject")}>
               Reject order
             </button>
           </div>
