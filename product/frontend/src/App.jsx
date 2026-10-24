@@ -7,14 +7,16 @@ import Activity from "./components/Activity.jsx";
 import Landing from "./components/Landing.jsx";
 import DemoControls from "./components/DemoControls.jsx";
 import TwoAgents from "./components/TwoAgents.jsx";
+import Specialists from "./components/Specialists.jsx";
 import { usd, ago, parseFlag } from "./format.js";
 
-// Routes: "#home" (landing, default), "#desk", "#agents", "#activity", "#bounties"
+// Routes: "#home" (landing, default), "#desk", "#specialists", "#bounties", "#activity", "#agents" (live demo)
 const TABS = [
   ["desk", "Approvals"],
-  ["agents", "Two agents"],
-  ["activity", "Activity"],
+  ["specialists", "Specialists"],
   ["bounties", "Bounties"],
+  ["activity", "Activity"],
+  ["agents", "Demo"],
 ];
 const ROUTES = ["home", ...TABS.map(([k]) => k)];
 
@@ -42,6 +44,7 @@ export default function App() {
   const [online, setOnline] = useState(true);
   const [toast, setToast] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [tick, setTick] = useState(0);
   const [dismissedBlocked, setDismissedBlocked] = useState(() => new Set());
   const lastBlocked = useRef(null);
   const awaitingReceipt = useRef(new Set());
@@ -54,6 +57,7 @@ export default function App() {
       if (!Array.isArray(proposals)) throw new Error("bad response");
       setState({ proposals, config, balances, bounties, health });
       setOnline(true);
+      setTick((t) => t + 1);
 
       const newestBlocked = proposals.find((p) => p.blocked);
       if (newestBlocked && lastBlocked.current !== null && newestBlocked.id !== lastBlocked.current) {
@@ -94,6 +98,8 @@ export default function App() {
   const current = pending.find((p) => p.id === selectedId) || pending[0];
   const upNext = pending.filter((p) => p !== current);
   const blocked = state.proposals.filter((p) => p.blocked && !dismissedBlocked.has(p.id)).slice(0, 1);
+  const ra = state.balances?.["research-agent"];
+  const treasury = ra ? (ra.assets || []).reduce((a, x) => a + Number(x.usd_value || 0), 0) : null;
 
   async function decide(id, decision, reason) {
     await api.decide(id, decision, reason);
@@ -122,6 +128,12 @@ export default function App() {
           ))}
         </nav>
         <div className="status">
+          {treasury !== null && (
+            <button className="treasury-chip" onClick={() => go("specialists")} title="Research agent wallet">
+              <span className="tc-label">Agent wallet</span>
+              <span className="tc-amount num">{usd(treasury, 2)}</span>
+            </button>
+          )}
           {state.config?.dry_run && <span className="pill pill-warn">Dry run</span>}
           <span className={`live ${online ? "on" : "off"}`} title={API}>
             <span className="live-dot" />
@@ -211,6 +223,16 @@ export default function App() {
       )}
 
       {route === "agents" && <TwoAgents />}
+
+      {route === "specialists" && (
+        <main className="page">
+          <div className="page-title">
+            <h1>Specialists</h1>
+            <p>Agents the research agent can hire. Each one holds something it doesn't, and gets paid per job.</p>
+          </div>
+          <Specialists api={api} balances={state.balances} refreshKey={tick} onOpenApprovals={() => go("desk")} />
+        </main>
+      )}
 
       {route === "bounties" && (
         <main className="page">
