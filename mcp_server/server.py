@@ -273,7 +273,7 @@ def set_balance(agent: str, balance_json: str) -> str:
     """Push a balance snapshot for an agent (Person A after fills).
 
     balance_json example:
-    {"label":"Research desk","treasury_mode":"endowment","assets":[{"asset":"ETH","amount":0.02,"usd_value":3.5}]}
+    {"label":"Research desk","treasury_mode":"endowment","assets":[{"asset":"ETH","amount":0.0015,"usd_value":4.5}]}
     """
     try:
         return _j(q.set_balance(agent, json.loads(balance_json)))
@@ -499,7 +499,7 @@ def verify_transaction(
     purpose: str,
     amount_usd: float,
     seller: str,
-    buyer: str = "wallet_research_desk",
+    buyer: str = "research-agent",
     path_summary: str = "",
 ) -> str:
     """Second-model verifier: sees only user request + proposed tx (not fetched page).

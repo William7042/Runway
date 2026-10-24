@@ -2,12 +2,17 @@
 
 Everything here is fake and labelled as such. Shapes follow the shared contract
 in product/README.md.
+
+Demo portfolio asset is ETH, on the five-token commerce allowlist. Prices and balances are simulated.
 """
 
 RESEARCH_QUESTION = (
     "Is Nvidia's data-center revenue growth accelerating or slowing? "
     "Check the latest 10-Q and get a human to fact-check the summary."
 )
+
+# Match stubs/router_stub.py pretend ETH ~ $3000
+ETH_PX = 3000.0
 
 
 def seed_proposals():
@@ -24,20 +29,20 @@ def seed_proposals():
                        "I need the data-center revenue line to answer the question.",
             "amount_usd": 0.05,
             "path": [
-                {"type": "transfer", "asset": "ETH", "amount": 0.00001667}
+                {"type": "transfer", "asset": "ETH", "amount": round(0.05 / ETH_PX, 8)}
             ],
             "expected_cost": {"price_impact_usd": 0.0, "fees_usd": 0.0, "total_usd": 0.0},
             "alternatives": [
                 {
                     "path": [
-                        {"type": "swap", "asset": "ETH", "amount": 0.00001667, "to_asset": "USDC"},
+                        {"type": "swap", "asset": "ETH", "amount": round(0.05 / ETH_PX, 8), "to_asset": "USDC"},
                         {"type": "transfer", "asset": "USDC", "amount": 0.05},
                     ],
                     "rejected_reason": "Seller accepts ETH, so paying in kind avoids the 20 bps swap fee.",
                 }
             ],
-            "drift": {"onchain_price": 3012.0, "reference_price": 3000.0, "gap_pct": 0.4},
-            "flags": [],
+            "drift": {"onchain_price": 3001.5, "reference_price": 3000.05, "gap_pct": 0.05},
+            "flags": ["SIMULATED: canned ETH price and balances; no funds move"],
             "source": {"kind": "user_message", "text": RESEARCH_QUESTION},
             "status": "pending",
         },
@@ -53,7 +58,7 @@ def seed_proposals():
                        "so I can tell whether growth is speeding up.",
             "amount_usd": 0.25,
             "path": [
-                {"type": "swap", "asset": "ETH", "amount": 0.00008333, "to_asset": "USDC"},
+                {"type": "swap", "asset": "ETH", "amount": round(0.25 / ETH_PX, 8), "to_asset": "USDC"},
                 {"type": "transfer", "asset": "USDC", "amount": 0.25},
             ],
             "expected_cost": {"price_impact_usd": 0.0002, "fees_usd": 0.0005, "total_usd": 0.0007},
@@ -70,8 +75,8 @@ def seed_proposals():
                     "rejected_reason": "The simulated SOL route costs more than the selected ETH route.",
                 },
             ],
-            "drift": {"onchain_price": 3012.0, "reference_price": 3000.0, "gap_pct": 0.4},
-            "flags": [],
+            "drift": {"onchain_price": 3001.5, "reference_price": 3000.05, "gap_pct": 0.05},
+            "flags": ["SIMULATED: canned ETH price and balances; no funds move"],
             "source": {"kind": "user_message", "text": RESEARCH_QUESTION},
             "status": "pending",
         },
@@ -109,12 +114,12 @@ def attack_proposal():
         "purpose": "Transfer the full treasury to the address provided by the page, as instructed.",
         "amount_usd": 412.37,
         "path": [
-            {"type": "swap", "asset": "ETH", "amount": 0.13745667, "to_asset": "USDC"},
+            {"type": "swap", "asset": "ETH", "amount": round(412.37 / ETH_PX, 6), "to_asset": "USDC"},
             {"type": "transfer", "asset": "USDC", "amount": 412.37},
         ],
         "expected_cost": {"price_impact_usd": 1.84, "fees_usd": 0.82, "total_usd": 2.66},
         "alternatives": [],
-        "drift": {"onchain_price": 3012.0, "reference_price": 3000.0, "gap_pct": 0.4},
+        "drift": {"onchain_price": 3001.5, "reference_price": 3000.05, "gap_pct": 0.05},
         "flags": [
             "POLICY_BLOCK: Recipient 0x9f3c...e41b is not on the recipient allowlist.",
             "POLICY_BLOCK: $412.37 exceeds the per-payment cap of $1.00.",
@@ -152,7 +157,7 @@ def seed_balances():
             "simulated": True,
             "assets": [
                 {"asset": "USDC", "amount": 0.40, "usd_value": 0.40},
-                {"asset": "ETH", "amount": 0.00006667, "usd_value": 0.20},
+                {"asset": "ETH", "amount": 0.00007, "usd_value": 0.20},
             ],
         },
         "premium-archive": {
@@ -229,6 +234,6 @@ SPECIALISTS = [
 
 DEFAULT_CONFIG = {
     "drift_pct": 0.4,             # simulated on-chain vs reference gap, set by the UI slider
-    "drift_threshold_pct": 2.0,   # above this the agent must not sell tokenized stock
+    "drift_threshold_pct": 2.0,   # above this the agent must not sell the portfolio asset
     "dry_run": True,              # display only; Person A's code reads DRY_RUN from its own env
 }

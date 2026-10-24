@@ -22,7 +22,7 @@ def main() -> int:
     user_q = "Fact-check Acme Robotics founders for the research desk."
 
     b = bounty_mod.post_bounty(
-        poster="wallet_research_desk",
+        poster="research-agent",
         title="Human fact-check: Acme Robotics founders",
         description=(
             "Verify prior exits and litigation. "

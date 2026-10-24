@@ -22,8 +22,7 @@ export function Flags({ flags }) {
   );
 }
 
-// Apply the demo reference-price guard to supported volatile assets.
-const isVolatile = (asset) => ["SOL", "BTC", "ETH"].includes(asset);
+const isDriftAsset = (asset) => ["SOL", "BTC", "ETH"].includes(asset);
 
 /** Wallet → (sell) → pay → seller, drawn as a row of nodes. */
 function PaymentFlow({ p }) {
@@ -61,8 +60,9 @@ export default function ProposalCard({ p, config, onDecide, position, total }) {
   const d = driftPct(p.drift);
   const live = config?.drift_pct;
   const threshold = config?.drift_threshold_pct ?? 2;
-  const sellsStock = (p.path || []).some((s) => s.type === "swap" && isVolatile(s.asset));
-  const driftDanger = sellsStock && live !== undefined && live > threshold;
+  const sellsDriftAsset = (p.path || []).some((s) => s.type === "swap" && isDriftAsset(s.asset));
+  const driftAsset = ((p.path || []).find((s) => s.type === "swap" && isDriftAsset(s.asset)) || {}).asset || "ETH";
+  const driftDanger = sellsDriftAsset && live !== undefined && live > threshold;
   const src = sourceInfo(p.source);
   const why = p.rationale || p.purpose;
 
@@ -101,7 +101,9 @@ export default function ProposalCard({ p, config, onDecide, position, total }) {
       {driftDanger && (
         <div className="flag flag-block">
           <span className="flag-label">Price drift {live.toFixed(1)}%</span>
-          <span>The simulated quote is too far from its reference price. Review the route before selling.</span>
+          <span>
+            The simulated {driftAsset} quote is too far from its reference price. Review the route before selling.
+          </span>
         </div>
       )}
 
