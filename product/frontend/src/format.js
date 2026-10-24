@@ -2,7 +2,8 @@ export const usd = (n, digits) => {
   if (n === null || n === undefined || Number.isNaN(Number(n))) return "—";
   const v = Number(n);
   const d = digits ?? (Math.abs(v) < 1 && v !== 0 ? 4 : 2);
-  return "$" + v.toLocaleString(undefined, { minimumFractionDigits: Math.min(d, 2), maximumFractionDigits: d });
+  const sign = v < 0 ? "-" : "";
+  return sign + "$" + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: Math.min(d, 2), maximumFractionDigits: d });
 };
 
 export const amt = (n) => {

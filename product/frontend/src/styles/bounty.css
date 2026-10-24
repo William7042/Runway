@@ -1,0 +1,24 @@
+/* Bounty board. (owner: teammate) */
+
+.bounty-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 40px; align-items: start; }
+@media (max-width: 1000px) { .bounty-layout { grid-template-columns: 1fr; gap: 24px; } }
+
+.bounty h3 { font-size: var(--fs-title); font-weight: 600; letter-spacing: -0.01em; margin-top: 2px; }
+.bounty .card-head p { color: var(--text-2); margin-top: 6px; max-width: 64ch; }
+.bounty .amount .big { font-size: var(--fs-amount); letter-spacing: -0.03em; line-height: 1; }
+
+.stepper { display: flex; padding: 4px 0; }
+.stepper-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  font-size: var(--fs-label); color: var(--text-3); position: relative; text-transform: capitalize;
+}
+.stepper-item::before { content: ""; position: absolute; top: 5px; left: -50%; width: 100%; height: 2px; background: var(--border); }
+.stepper-item:first-child::before { display: none; }
+.stepper-item.done::before { background: var(--mint); }
+.stepper-item .dot { width: 12px; height: 12px; border-radius: 99px; background: var(--border-strong); z-index: 1; }
+.stepper-item.done .dot { background: var(--mint); }
+.stepper-item.current { color: var(--text); font-weight: 600; }
+.stepper-item.current .dot { box-shadow: 0 0 0 4px var(--good-bg); }
+.stepper-item.refund.done .dot { background: var(--bad); }
+
+.submission { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; color: var(--text-2); }

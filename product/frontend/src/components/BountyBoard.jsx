@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { usd, ago } from "../format.js";
+import "../styles/bounty.css";
 
 const FLOW = ["open", "claimed", "submitted", "paid"];
 

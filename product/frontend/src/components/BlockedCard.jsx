@@ -1,5 +1,6 @@
 import React from "react";
 import { usd, amt, parseFlag, sourceInfo, SOURCE_LABEL, ago } from "../format.js";
+import "../styles/desk.css";
 
 function Highlight({ text, needle }) {
   if (!needle || !text || !text.includes(needle)) return <>{text}</>;

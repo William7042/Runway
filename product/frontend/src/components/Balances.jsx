@@ -1,5 +1,6 @@
 import React from "react";
 import { usd, amt } from "../format.js";
+import "../styles/desk.css";
 
 const MODE = { endowment: "Endowment", pay_in_kind: "Pay in kind", auto_top_up: "Auto top-up" };
 

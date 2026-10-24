@@ -1,5 +1,6 @@
 import React from "react";
-import { usd, ago, costTotal, flagText } from "../format.js";
+import { usd, ago, costTotal } from "../format.js";
+import "../styles/ledger.css";
 import { TxHash } from "./Receipts.jsx";
 
 const cost = (x) => (x && typeof x === "object" ? x.cost_usd ?? x.total_usd : x);

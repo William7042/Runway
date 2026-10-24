@@ -1,0 +1,18 @@
+/* Ledger. (owner: teammate) */
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.stat .big { font-size: var(--fs-amount); letter-spacing: -0.03em; margin-top: 4px; }
+
+.table-wrap { overflow-x: auto; }
+.ledger { width: 100%; border-collapse: collapse; font-size: var(--fs-small); }
+.ledger th {
+  text-align: left; font-size: var(--fs-label); font-weight: 500; color: var(--text-3);
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+}
+.ledger th.right { text-align: right; }
+.ledger td { padding: 14px 12px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text-2); }
+.ledger td:nth-child(2) { color: var(--text); font-weight: 500; }
+.ledger td.mono { font-family: inherit; font-variant-numeric: tabular-nums; color: var(--text); }
+.ledger tr:last-child td { border-bottom: 0; }
+.row-blocked td { background: var(--bad-bg); }
