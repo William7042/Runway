@@ -98,3 +98,15 @@ def install(mcp):
     def submit_specialist_result(job_id: str, owner_token: str, result: str) -> dict:
         """Seller delivers work for its confirmed paid job. Same-result retries are idempotent."""
         return q._req('POST',f'/specialist-jobs/{job_id}/result',json={'owner_token':owner_token,'result':result})
+
+    @mcp.tool()
+    def execute_bounty_payment(bounty_id: str) -> dict:
+        """Execute a direct bounty payout only after the human approves its exact proposal.
+
+        The local queue can also run approved payouts automatically. DRY_RUN never sends.
+        """
+        from runway_money.bounties import execute_payout
+        bounty=next((b for b in q.list_bounties() if b['id']==bounty_id),None)
+        if not bounty or bounty.get('payment_mode')!='direct' or not bounty.get('settlement_proposal_id'):
+            return {'error':'No reviewed direct bounty payment exists'}
+        return execute_payout(bounty)

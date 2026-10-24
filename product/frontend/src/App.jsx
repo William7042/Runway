@@ -210,8 +210,9 @@ export default function App() {
                           to {p.seller} · {ago(p.receipt?.at || p.decision?.at || p.created_at)}
                           {p.decision?.reason ? ` · “${p.blocked ? "Blocked by policy" : p.decision.reason}”` : ""}
                         </div>
+                        {p.execution_error && <div className="danger small" role="alert">{p.execution_error}</div>}
                       </div>
-                      <span className={`pill pill-${p.status}`}>{p.blocked ? "blocked" : p.status}</span>
+                      <span className={`pill pill-${p.status}`}>{p.blocked ? "blocked" : p.execution_error ? "payment stopped" : p.status}</span>
                       <span className="recent-amt num">{usd(p.amount_usd)}</span>
                     </div>
                   ))}

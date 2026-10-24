@@ -29,6 +29,7 @@ export const api = {
   specialists: () => req("GET", "/specialists"),
   registerSpecialist: (body) => req("POST", "/specialists", body),
   updateSpecialist: (id, body) => req("PATCH", `/specialists/${id}`, body),
+  saveSellerCredentials: (id, owner_token) => req("POST", `/specialists/${id}/demo-credentials`, { owner_token }),
   sellerJobs: (id, owner_token) => req("POST", `/specialists/${id}/jobs`, { owner_token }),
   submitResult: (jobId, owner_token, result) => req("POST", `/specialist-jobs/${jobId}/result`, { owner_token, result }),
   attack: () => req("POST", "/demo/attack"),

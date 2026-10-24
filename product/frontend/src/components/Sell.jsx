@@ -68,6 +68,17 @@ function JobRow({ job, onDeliver }) {
 export default function Sell({ api, refreshKey }) {
   const [all, setAll] = useState([]);
   const [tokens, setTokens] = useState(loadTokens);
+  const [credentialsSaved, setCredentialsSaved] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const owned = Object.entries(tokens);
+    if (!owned.length) return;
+    const [id, token] = owned[owned.length - 1];
+    api.health().then(h => h.demo_seller_autosave ? api.saveSellerCredentials(id, token) : null)
+      .then(result => alive && setCredentialsSaved(Boolean(result?.credentials_saved)))
+      .catch(() => alive && setCredentialsSaved(false));
+    return () => { alive = false; };
+  }, [api, Object.keys(tokens).join(",")]);
   const [jobs, setJobs] = useState({});
   const [err, setErr] = useState("");
   const [form, setForm] = useState({ name: "", capability: "", price_usd: "0.10", payout_user: "test2", accepts: "PYUSD", simulated: false });
@@ -121,6 +132,7 @@ export default function Sell({ api, refreshKey }) {
       });
       remember(r.id, r.owner_token);
       setJustRegistered(r);
+      setCredentialsSaved(Boolean(r.credentials_saved));
       setForm({ ...form, name: "", capability: "" });
     } catch (e) {
       setErr(e.message);
@@ -174,6 +186,7 @@ export default function Sell({ api, refreshKey }) {
 
       {err && <div className="error">{err}</div>}
 
+      {credentialsSaved && <p className="good small" role="status">Seller setup saved automatically. Codex can read .runway/demo-seller.json; no token copying needed.</p>}
       <div className="sell-layout">
         <section className="stack">
           <h2 className="section-title">Your services</h2>
@@ -254,7 +267,7 @@ export default function Sell({ api, refreshKey }) {
                 {saving ? "Listing…" : "List service"}
               </button>
             </div>
-            {justRegistered && (
+            {justRegistered && !credentialsSaved && (
               <div className="token-box" role="status">
                 <div className="strong">Listed {justRegistered.name}</div>
                 <p className="small">

@@ -41,11 +41,13 @@ from mcp_server import queue_http as q
 mcp = MCPServer(
     "runway",
     instructions=(
-        "Runway: AI agents hold a portfolio and pay for data/bounties/specialists "
-        "via proposals. A human must approve EVERY order — there is no auto-approve. "
-        "Never call True Markets from these tools. Prefer propose → wait for human "
-        "decision. Escrow is app-managed, not a smart contract. Sellers are SIMULATED. "
-        "Technical demo, not financial advice."
+        "Runway connects buyer agents, specialist sellers, and bounty workers. "
+        "A HUMAN approves EVERY financial order in the dashboard; there is no auto-approve or agent approval tool. "
+        "Money moves only through the approval-guarded router. Discover/register services, request jobs, wait for "
+        "human approval, then execute approved payment. Sellers poll paid jobs and submit results. "
+        "New bounties pay directly after work review and separate payment approval; funds are not escrowed or reserved. "
+        "Use registered True Markets user IDs: demo buyer test, worker/seller test2. Tested bounty price: $4 PYUSD plus $1 transfer fee. "
+        "DRY_RUN never signs or sends. Legacy seeded sellers are labeled simulated. Technical demo, not financial advice."
     ),
 )
 
@@ -283,7 +285,7 @@ def set_balance(agent: str, balance_json: str) -> str:
 
 @mcp.tool()
 def list_bounties(status: Optional[str] = None) -> str:
-    """List bounty board entries (escrow is app-managed, not a smart contract)."""
+    """List bounties. New bounties pay directly after work review and human payment approval."""
     try:
         return _j([b for b in q.list_bounties() if status is None or b["status"] == status])
     except Exception as e:
@@ -295,11 +297,11 @@ def post_bounty(
     title: str,
     description: str,
     price_usd: float,
-    asset: str = "USDC",
-    poster: str = "research-agent",
+    asset: str = "PYUSD",
+    poster: str = "test",
     deadline: str = "",
 ) -> str:
-    """Post a bounty. Creates a funding proposal that still needs human approval."""
+    """Post a direct-pay bounty. No funds move now. Work review creates a real payout proposal for human approval. Use $4 PYUSD for the tested demo route ($1 fee extra)."""
     try:
         return _j(
             q.post_bounty(
@@ -322,7 +324,9 @@ def claim_bounty(bounty_id: str, claimant: str) -> str:
     """Claim an open bounty (one claimant at a time)."""
     try:
         bounty = q.claim_bounty(bounty_id, claimant)
-        if not bounty.get('escrow_funded'):
+        if bounty.get('payment_mode') == 'direct':
+            bounty['payment_warning'] = 'Direct payment after work review and human payment approval. Funds are not reserved.'
+        elif not bounty.get('escrow_funded'):
             bounty['payment_warning'] = 'Claim reserves the task only. Escrow is unfunded; no payout is guaranteed.'
         return _j(bounty)
     except Exception as e:

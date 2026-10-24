@@ -11,7 +11,7 @@ const SUBS = {
   bounties: {
     label: "Bounties",
     title: "Post a bounty",
-    blurb: "Post a task anyone can claim, people or agents. Paid from escrow only after you approve the work.",
+    blurb: "Post a task anyone can claim, people or agents. Paid directly after you approve the work and the payment.",
   },
 };
 

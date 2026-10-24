@@ -16,7 +16,7 @@ Product-layer extensions (additive, nothing in the contract changes):
   /bounties ...                        bounty board state machine
   POST /demo/attack  POST /demo/reset  demo helpers
 
-This service never signs or sends anything. Money only moves in Person A's execute().
+This service delegates approved payments to Person A's approval-guarded execute().
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ import threading
 import time
 import uuid
 from contextlib import asynccontextmanager
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Literal, Optional
 
@@ -180,9 +181,9 @@ class ConfigIn(BaseModel):
 class BountyIn(BaseModel):
     title: str
     description: str = ""
-    price_usd: float = Field(gt=0)
-    asset: str = "USDC"
-    poster: str = "research-agent"
+    price_usd: float = Field(gt=0, allow_inf_nan=False)
+    asset: str = "PYUSD"
+    poster: str = "test"
     deadline: str = ""
 
 
@@ -233,6 +234,17 @@ def _settle_bounty(s: dict, proposal: dict) -> None:
         if b["id"] != bid:
             continue
         if proposal["status"] == "executed":
+            if b.get('payment_mode') == 'direct':
+                receipt = proposal.get('receipt') or {}
+                quality = (receipt.get('fill') or {}).get('execution_quality') or {}
+                expected = Decimal(str(quality.get('expected_received', 0)))
+                actual = Decimal(str(quality.get('actual_received', 0)))
+                if (not receipt.get('tx_hash') or expected <= 0 or actual < expected
+                        or quality.get('needs_reconciliation')
+                        or Decimal(str(quality.get('shortfall', 0))) != 0
+                        or proposal['buyer'] != b['poster'] or proposal['seller'] != b['claimant']):
+                    b['payout_issue'] = 'Receipt does not prove full direct payment to this worker; reconcile before retrying.'
+                    return
             if role == "payout":
                 b["status"] = "paid"
                 b["history"].append({"status": "paid", "note": f"Paid out via {proposal['id']}", "at": _now()})
@@ -368,6 +380,21 @@ async def _stub_loop():
             print("stub executor error:", e)
 
 
+def _approved_specialist_jobs():
+    with Store() as s:
+        approved = {p['id'] for p in s['proposals']
+                    if p['status'] == 'approved' and not p.get('execution_error')}
+        return [copy.deepcopy(j) for j in s.get('specialist_jobs', [])
+                if not j.get('simulated') and j.get('proposal_id') in approved]
+
+
+def _specialist_execution_issue(ident, message):
+    with Store() as s:
+        proposal = _find(s['proposals'], ident, 'proposal')
+        if proposal['status'] == 'approved':
+            proposal['execution_error'] = message
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     with Store():
@@ -380,9 +407,23 @@ async def lifespan(_app: FastAPI):
             with Store() as s:
                 s['balances'][user] = snapshot
         balance_task = asyncio.create_task(watch(publish_balance, interval=5))
+    bounty_task = None
+    if os.getenv('RUNWAY_BOUNTY_EXECUTOR', '0') == '1':
+        from runway_money.bounties import watch as watch_bounties
+        def approved_bounties():
+            with Store() as s:
+                approved = {p['id'] for p in s['proposals'] if p['status'] == 'approved'}
+                return [copy.deepcopy(b) for b in s['bounties'] if b.get('payment_mode') == 'direct'
+                        and b.get('settlement_proposal_id') in approved]
+        bounty_task = asyncio.create_task(watch_bounties(approved_bounties))
+    specialist_task = None
+    if not STUB_EXECUTOR and os.getenv('RUNWAY_SPECIALIST_EXECUTOR', '0') == '1':
+        from runway_money.specialists import watch as watch_specialists
+        specialist_task = asyncio.create_task(watch_specialists(
+            _approved_specialist_jobs, _specialist_execution_issue))
     print(f"Runway queue: data={DATA_FILE}  stub_executor={'ON' if STUB_EXECUTOR else 'OFF'}")
     yield
-    for background in (task, balance_task):
+    for background in (task, balance_task, bounty_task, specialist_task):
         if background:
             background.cancel()
             try:
@@ -397,7 +438,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 @app.get("/health")
 def health():
-    return {"ok": True, "stub_executor": STUB_EXECUTOR, "balance_sync": os.getenv("RUNWAY_BALANCE_SYNC", "0") == "1"}
+    return {"ok": True, "stub_executor": STUB_EXECUTOR, "balance_sync": os.getenv("RUNWAY_BALANCE_SYNC", "0") == "1", "bounty_executor": os.getenv("RUNWAY_BOUNTY_EXECUTOR", "0") == "1", "specialist_executor": not STUB_EXECUTOR and os.getenv("RUNWAY_SPECIALIST_EXECUTOR", "0") == "1", "demo_seller_autosave": os.getenv("RUNWAY_DEMO_SELLER_AUTOSAVE", "0") == "1"}
 
 
 @app.post("/proposals", status_code=201)
@@ -513,14 +554,13 @@ def post_bounty(body: BountyIn):
     with Store() as s:
         bid = f"bounty-{uuid.uuid4().hex[:6]}"
         b = {
-            "id": bid, **body.model_dump(), "status": "open", "escrow_wallet": f"escrow-{bid}",
+            "id": bid, **body.model_dump(), "status": "open", "payment_mode": "direct", "escrow_wallet": None,
             "escrow_funded": False, "claimant": None, "submission": None,
             "history": [{"status": "open", "note": f"Posted by {body.poster}", "at": _now()}],
         }
         s["bounties"].append(b)
-        fund = _bounty_proposal(s, b, "funding", b["escrow_wallet"],
-                                f"Fund escrow for bounty: {b['title']}", f"Bounty posted: {b['title']}")
-        b["funding_proposal_id"] = fund["id"]
+        # New bounties are direct pay after work review. No fictitious funding order.
+        b['funding_proposal_id'] = None
         return b
 
 
@@ -554,6 +594,24 @@ def verify(bid: str, body: VerifyIn):
             raise HTTPException(409, f"bounty is {b['status']}, expected submitted")
         if b.get("settlement_proposal_id"):
             raise HTTPException(409, "settlement already proposed")
+        if b.get('payment_mode') == 'direct':
+            if body.decision == 'reject':
+                b['status'] = 'rejected'
+                b['verification'] = {**body.model_dump(), 'at': _now()}
+                b['history'].append({'status':'rejected','note':'Work rejected; no payment sent. '+body.reason,'at':_now()})
+                return b
+            if STUB_EXECUTOR:
+                raise HTTPException(409, 'Disable the simulated executor before preparing real bounty payments')
+            try:
+                from runway_money.bounties import draft_payout
+                draft = draft_payout(b)
+            except Exception as exc:
+                raise HTTPException(409, 'Cannot prepare payout: verify registered poster/worker, accepted asset, balance, and transfer minimum. No payment was sent.') from exc
+            payout = _create_proposal(s, draft)
+            b['settlement_proposal_id'] = payout['id']
+            b['verification'] = {**body.model_dump(), 'at': _now()}
+            b['history'].append({'status':'submitted','note':'Work approved; real direct payment requires separate approval in Approvals.','at':_now()})
+            return b
         if body.decision == "approve":
             p = _bounty_proposal(s, b, "payout", b["claimant"],
                                  f"Pay {b['claimant']} for approved bounty work: {b['title']}",

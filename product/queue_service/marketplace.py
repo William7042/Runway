@@ -1,5 +1,8 @@
 """Local marketplace extensions. Money remains in the approval-guarded router."""
 import hashlib
+import json
+import os
+from pathlib import Path
 import secrets
 import time
 import uuid
@@ -9,6 +12,33 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 TOKENS={'USDC','PYUSD','SOL','BTC','ETH'}
+
+
+DEMO_ROOT=Path(__file__).resolve().parents[2] / '.runway'
+
+
+def save_demo_credentials(profile, token):
+    """Explicit local-demo convenience; never include secrets in logs/public listings."""
+    if os.getenv('RUNWAY_DEMO_SELLER_AUTOSAVE','0') != '1':
+        return {'credentials_saved':False}
+    import tempfile
+    directory=DEMO_ROOT / 'seller-credentials'
+    directory.mkdir(parents=True,exist_ok=True,mode=0o700)
+    os.chmod(directory,0o700)
+    record={'specialist_id':profile['id'],'owner_token':token,'name':profile['name'],
+            'payout_user':profile['payout_user']}
+    for target in (directory / (profile['id']+'.json'), DEMO_ROOT / 'demo-seller.json'):
+        temp=None
+        try:
+            with tempfile.NamedTemporaryFile(mode='w',dir=directory,delete=False) as f:
+                temp=Path(f.name)
+                os.fchmod(f.fileno(),0o600)
+                json.dump(record,f,indent=2)
+                f.flush();os.fsync(f.fileno())
+            os.replace(temp,target)
+        finally:
+            if temp and temp.exists():temp.unlink()
+    return {'credentials_saved':True,'credentials_file':'.runway/demo-seller.json'}
 
 
 def _hash(token):
@@ -95,6 +125,7 @@ def install(app, Store, find):
             result['status']='paid' if paid(s,job) else 'awaiting_payment'
             if job.get('proposal_id'):
                 p=find(s['proposals'],job['proposal_id'],'proposal')
+                if p.get('execution_error'): result['payment_error']=p['execution_error']
                 if p['status'] in {'rejected','failed'}: result['status']=p['status']
         return result
 
@@ -107,8 +138,23 @@ def install(app, Store, find):
                 'private_asset':'Vendor-provided specialist work','unit':'per job',
                 'base':{'jobs':0,'earned_usd':0,'refunds':0}}
             s.setdefault('registered_specialists',[]).append(profile)
-            return {**_public(profile),'owner_token':token,
-                    'note':'Keep owner_token private. Listing does not verify wallet ownership or enable a payment route.'}
+        try:
+            saved=save_demo_credentials(profile,token)
+        except OSError:
+            saved={'credentials_saved':False,'credentials_note':'Automatic save failed; keep the returned token privately.'}
+        return {**_public(profile),'owner_token':token,**saved,
+                'note':'Keep owner_token private. Listing does not verify wallet ownership or enable a payment route.'}
+
+    @router.post('/specialists/{ident}/demo-credentials')
+    def save_existing_credentials(ident: str,body: Update):
+        if os.getenv('RUNWAY_DEMO_SELLER_AUTOSAVE','0')!='1':
+            raise HTTPException(403,'Local demo credential saving is disabled')
+        with Store() as s:
+            profile=listing(s,ident);owner(profile,body.owner_token)
+            try:
+                return save_demo_credentials(profile,body.owner_token)
+            except OSError:
+                raise HTTPException(503,'Could not save local seller credentials')
 
     @router.get('/specialists/{ident}')
     def get_listing(ident: str):

@@ -227,7 +227,7 @@ function formatDeadline(value) {
 }
 
 function Stepper({ status }) {
-  const steps = status === "refunded" ? ["open", "claimed", "submitted", "refunded"] : FLOW;
+  const steps = ["refunded", "rejected"].includes(status) ? ["open", "claimed", "submitted", status] : FLOW;
   const idx = steps.indexOf(status);
   return (
     <div className="stepper">
@@ -267,9 +267,11 @@ function BountyCard({ b, proposalsById, act }) {
       <Stepper status={b.status} />
 
       <div className="small muted">
-        Escrow wallet <span className="mono">{b.escrow_wallet}</span>
-        {funding && <> · funding order <span className={`pill pill-${funding.status}`}>{funding.status}</span></>}
-        {b.escrow_funded && <span className="pill pill-ok">funded</span>}
+        {b.payment_mode === "direct" ? "Direct payment after work review and your payment approval. Reward funds remain in the poster’s wallet; they are not reserved." : <>
+          Legacy escrow entry <span className="mono">{b.escrow_wallet}</span>
+          {funding && <> · funding order <span className={`pill pill-${funding.status}`}>{funding.status}</span></>}
+          {b.escrow_funded && <span className="pill pill-ok">funded</span>}
+        </>}
       </div>
 
       {b.claimant && (
@@ -281,7 +283,7 @@ function BountyCard({ b, proposalsById, act }) {
 
       {b.status === "open" && (
         <div className="inline-form">
-          <input placeholder="Your name (worker)" value={name} onChange={(e) => setName(e.target.value)} />
+          <input placeholder="Registered worker user (e.g. test2)" value={name} onChange={(e) => setName(e.target.value)} />
           <button className="btn" disabled={!name.trim()} onClick={() => act(() => b.claim(name.trim()))}>
             Claim
           </button>
@@ -303,7 +305,7 @@ function BountyCard({ b, proposalsById, act }) {
               Approve work
             </button>
             <button className="btn btn-reject" onClick={() => act(() => b.verify("reject", reason))}>
-              Reject &amp; refund
+              {b.payment_mode === "direct" ? "Reject work" : "Reject & refund"}
             </button>
           </div>
           <div className="small muted">Approving work doesn't pay yet. It creates a payout order that you approve on the Desk.</div>
@@ -313,7 +315,7 @@ function BountyCard({ b, proposalsById, act }) {
         <div className="small">
           {settlement.bounty_role === "payout" ? "Payout" : "Refund"} order{" "}
           <span className={`pill pill-${settlement.status}`}>{settlement.status}</span>
-          {settlement.status === "pending" && <> · approve it on the Desk tab</>}
+          {settlement.status === "pending" && <> · approve it in Approvals</>}
         </div>
       )}
 
@@ -330,7 +332,7 @@ function BountyCard({ b, proposalsById, act }) {
 }
 
 export default function BountyBoard({ bounties, proposals, api, refresh }) {
-  const [form, setForm] = useState({ title: "", description: "", price_usd: "0.25", asset: "USDC", deadline: "" });
+  const [form, setForm] = useState({ title: "", description: "", price_usd: "4", asset: "PYUSD", poster: "test", deadline: "" });
   const minDeadline = toLocalInput(new Date());
   const deadlineOk = !form.deadline || form.deadline >= minDeadline;
   const [err, setErr] = useState("");
@@ -359,7 +361,7 @@ export default function BountyBoard({ bounties, proposals, api, refresh }) {
         <div className="panel-head">
           <h2>Post a bounty</h2>
         </div>
-        <p className="muted small">Funds go into a dedicated escrow wallet. Funding is an order like any other and needs approval.</p>
+        <p className="muted small">Post a reward, review the submitted work, then approve a direct payment to the worker. The $4 PYUSD demo reward has a separately quoted $1 transfer fee.</p>
         <div className="inline-form col">
           <input placeholder="Task title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <textarea
@@ -376,6 +378,7 @@ export default function BountyBoard({ bounties, proposals, api, refresh }) {
               <option>BTC</option>
               <option>ETH</option>
             </select>
+            <input aria-label="Poster payout user" placeholder="Poster user (test)" value={form.poster} onChange={(e) => setForm({ ...form, poster: e.target.value })} />
             <DeadlinePicker value={form.deadline} onChange={(deadline) => setForm({ ...form, deadline })} />
           </div>
           <button

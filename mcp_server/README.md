@@ -33,7 +33,7 @@ Resources: `runway://proposals/pending`, `runway://config`, `runway://specialist
 
 Prompts: `research_desk`, `review_pending`.
 
-**Safety:** human decisions happen in the dashboard. Agent tools cannot approve payments, forge receipts, or approve bounty work. Only `execute_specialist_payment` can execute its job’s already approved router plan; `DRY_RUN=1` prevents signing and sending.
+**Safety:** human decisions happen in the dashboard. Agent tools cannot approve payments, forge receipts, or approve bounty work. Specialist payments execute through the approval-guarded router, either by the queue worker or the idempotent `execute_specialist_payment` fallback; `DRY_RUN=1` prevents signing and sending.
 
 ## x402 v2 offers
 
@@ -89,14 +89,36 @@ not new executable money-layer plans.
 3. Deliver with `submit_specialist_result(job_id, owner_token, result)`. Retrying the same result is safe; overwriting a completed result is refused.
 4. Change pricing/description or pause sales using `update_specialist`. Existing jobs keep the original price and accepted assets.
 
-Buyer flow: `search_specialists` → `request_specialist_job(specialist_id, buyer, request, idempotency_key)` → human approves the pending proposal in the dashboard → `execute_specialist_payment(job_id)` → poll `get_specialist_job(job_id)` for delivery. Reuse the idempotency key on retries. Payment proposals are bound to exactly one job, buyer, seller, invoice, and source. A transport retry recovers an existing proposal instead of paying again.
+Buyer flow: `search_specialists` → `request_specialist_job(specialist_id, buyer, request, idempotency_key)` → human approves the pending proposal in the dashboard → queue executes the approved payment (with `RUNWAY_SPECIALIST_EXECUTOR=1`) → poll `get_specialist_job(job_id)` for delivery. Reuse the idempotency key on retries. Payment proposals are bound to exactly one job, buyer, seller, invoice, and source. A transport retry recovers an existing proposal instead of paying again.
 
 For live jobs, launch MCP with `RUNWAY_MODE=live`, and configure the seller's payout user and accepted API asset IDs in the existing ignored money-layer accounts file. Listing registration deliberately does not grant spending/signing permissions. Missing routes return a payment setup error and move no money. `DRY_RUN=1` returns previews only; results stay locked. Simulated listings and simulated receipts are permitted together for demonstrations, but cannot unlock live jobs. Shared proposal and approval contracts are unchanged.
 
 ## Bounty workers
 
-Use `list_bounties(status="open")` → `claim_bounty(bounty_id, claimant)` → `submit_bounty(bounty_id, submission)`. A claim reserves the task; check `escrow_funded` before beginning paid work. Unfunded claims return an explicit warning. The human reviews work in the dashboard; payout/refund proposals still require a separate financial approval. App-managed bounty escrow retains the existing demo limitations; this does not add on-chain escrow contracts or automatic payout execution.
+Use `list_bounties(status="open")` → `claim_bounty(bounty_id, claimant)` → `submit_bounty(bounty_id, submission)`. A claim reserves the task, not money. New bounties leave funds in the poster wallet until the work is reviewed and the exact payment is separately approved. The human reviews work in the dashboard; a payout proposal still requires separate financial approval. Rejected direct-pay work sends no money and requires no refund. New bounties use direct payments, not escrow. The queue can execute their already approved money-layer plans; it never approves them.
 
 These are local demo tools, not a public multi-tenant identity system. Seller owner tokens protect listing updates and result delivery; existing buyer/bounty identities rely on the trusted local client. Do not publish the queue server as an authenticated public marketplace. There is no API-key requirement for Runway model calls in this MCP workflow; vendors pay for and run their own agent infrastructure.
 
 Run the isolated protocol smoke test with `.venv/bin/python -m demo.mcp_marketplace_smoke`. It uses a temporary queue, fake payment evidence, and no live wallet funds.
+
+## Direct bounty payouts
+
+For the tested real demo, post `price_usd=4`, `asset=PYUSD`, `poster=test`; claim
+as `test2`. Submit work, review it in Hire → Bounties, then approve the quoted
+$4 reward plus $1 transfer fee in Approvals. A queue started with
+`RUNWAY_BOUNTY_EXECUTOR=1 DRY_RUN=0 STUB_EXECUTOR=0` executes only already
+approved direct bounty plans and records the real receipt. Alternatively call
+`execute_bounty_payment(bounty_id)` after approval. `DRY_RUN=1` only previews.
+No funds are reserved at posting. Poster funds, worker registration, token
+acceptance, quote limits, and transfer minimums are checked before proposing.
+Historical escrow records remain legacy entries and are not converted.
+
+### Execute specialist payments after human approval
+
+Run the local queue with `RUNWAY_SPECIALIST_EXECUTOR=1`, `STUB_EXECUTOR=0`, and
+the intended `DRY_RUN` setting. It checks live specialist invoices every half second
+and sends their exact payments through the money router only after dashboard approval.
+The buyer no longer needs to call `execute_specialist_payment`; that tool remains an
+idempotent fallback. This setting never approves an order. Invoice binding, expiry,
+price protection, local signing, and durable duplicate-submission guards still apply.
+A stopped attempt records `execution_error` for inspection and is not blindly retried.
