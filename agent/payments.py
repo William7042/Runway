@@ -43,9 +43,9 @@ def propose_and_enqueue(
     On policy block: proposal is None and nothing is enqueued.
     Verifier mismatches add a flag; they do not block.
     """
-    # Pre-check with provisional path assets (stub always uses NVDAc + USDC).
+    # Pre-check with provisional path assets (stub uses simulated ETH + USDC).
     live = os.getenv('RUNWAY_MODE', 'stub') == 'live'
-    provisional_assets = [] if live else ["NVDAc", preferred_asset]
+    provisional_assets = [] if live else ["ETH", preferred_asset]
     provisional_cost = 0 if live else round(amount_usd * 0.003, 4)
 
     policy_result = check_proposal(

@@ -57,6 +57,61 @@ def _err(e: Exception) -> str:
     return _j({"error": True, "detail": str(e)})
 
 
+@mcp.tool()
+def list_supported_assets() -> str:
+    """Runway's commerce allowlist plus matching live API assets when RUNWAY_MODE=live.
+
+    Catalog visibility is not a verified swap, withdrawal, or payment route.
+    No quote, signing, or transaction submission is performed.
+    """
+    from runway_money.assets import COMMERCE_SYMBOLS, allowed
+    result = {'allowed_symbols': sorted(COMMERCE_SYMBOLS), 'catalog_assets': [],
+              'route_status': 'Catalog entries require an executable quote and verified payment route.'}
+    if os.getenv('RUNWAY_MODE', 'stub') == 'live':
+        try:
+            from runway_money import get_router
+            result['catalog_assets'] = [{k: a.get(k) for k in
+                ('id', 'symbol', 'chain', 'venue', 'tradeable', 'stable', 'decimals', 'address')}
+                for a in get_router().backend.assets() if a.get('is_active') and allowed(a)]
+        except Exception:
+            return _j({'error': True, 'detail': 'Could not read supported assets from the API'})
+    return _j(result)
+
+
+@mcp.tool()
+def inspect_x402_offer(payment_required_header: str, resource_url: str) -> str:
+    """Inspect a seller's base64 PAYMENT-REQUIRED header (x402 v2). No signing or network fetch."""
+    try:
+        from runway_money.x402 import inspect_offer
+        return _j(inspect_offer(payment_required_header, resource_url))
+    except Exception:
+        return _j({'error': True, 'detail': 'Invalid x402 offer; check version, header encoding, resource URL, and payment fields.'})
+
+
+@mcp.tool()
+def propose_x402_payment(buyer: str, seller: str, purpose: str,
+                         payment_required_header: str, resource_url: str,
+                         option_index: int = 0) -> str:
+    """Queue a real-router x402 REVIEW ONLY. Settlement is unavailable, so the proposal cannot execute.
+
+    Requires RUNWAY_MODE=live and a registered recipient/asset. Keeps human approval;
+    never signs, transmits an authorization, or calls an approval endpoint.
+    """
+    if os.getenv('RUNWAY_MODE', 'stub') != 'live':
+        return _j({'error': True, 'detail': 'Set RUNWAY_MODE=live to validate against the real registered seller and asset catalog.'})
+    try:
+        from runway_money import get_router
+        from runway_money.x402 import propose_offer
+        proposal = propose_offer(get_router(), buyer=buyer, seller=seller, purpose=purpose,
+            payment_required=payment_required_header, resource_url=resource_url,
+            option_index=option_index)
+        return _j({'proposal': proposal, 'settlement_available': False, 'review_only': True})
+    except Exception as exc:
+        # Do not expose SDK request data or signing credentials through errors.
+        return _j({'error': True, 'error_type': type(exc).__name__,
+                   'detail': 'x402 proposal unavailable: verify registered seller, supported asset/network, and router policy.'})
+
+
 # ---------------------------------------------------------------------------
 # Queue / product layer
 # ---------------------------------------------------------------------------

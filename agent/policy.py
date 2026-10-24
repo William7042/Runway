@@ -21,7 +21,7 @@ class PolicyConfig:
     agent_id: str
     spend_cap_usd: float = 5.0  # demo wallets hold a few dollars
     asset_allowlist: set[str] = field(
-        default_factory=lambda: {"USDC", "NVDAc", "WETH", "ETH"}
+        default_factory=lambda: {"USDC", "PYUSD", "SOL", "BTC", "ETH"}
     )
     recipient_allowlist: set[str] = field(default_factory=set)
     # Empty allowlist = allow any known seller; set explicitly to lock down.

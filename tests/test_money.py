@@ -91,7 +91,7 @@ def setup(tmp_path, monkeypatch):
     monkeypatch.setenv('DRY_RUN', '1')
     backend, queue = Backend(), Queue()
     router = PaymentRouter(backend, queue, {'seller': {'accepted_asset_ids': ['usd']}},
-                           state=State(tmp_path), prices=lambda asset: Decimal(1), payment_fee_budget_usd='0')
+                           allowed_symbols={'USDCOIN', 'TOKEN'}, state=State(tmp_path), prices=lambda asset: Decimal(1), payment_fee_budget_usd='0')
     return router, backend, queue
 
 

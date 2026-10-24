@@ -2,6 +2,7 @@
 import json
 import os
 import time
+from .assets import COMMERCE_SYMBOLS, allowed
 from decimal import Decimal, ROUND_DOWN, ROUND_UP
 from uuid import uuid4
 from .backend import TrueMarketsBackend, dry_run, public
@@ -16,7 +17,7 @@ class PaymentRouter:
     def __init__(self, backend, queue, sellers, *, state=None, prices=None,
                  modes=None, max_payment_usd='1', max_impact_bps='100',
                  max_drift_bps='200', max_fee_usd='0.01', top_up_targets=None,
-                 payment_fee_budget_usd='1'):
+                 payment_fee_budget_usd='1', allowed_symbols=None):
         self.backend, self.queue, self.sellers = backend, queue, sellers
         self.state, self.prices = state or State(), prices or ReferencePrices()
         self.modes = modes or {}
@@ -26,6 +27,7 @@ class PaymentRouter:
         self.max_fee = dec(max_fee_usd)
         self.top_up_targets = top_up_targets or {}
         self.payment_fee_budget = dec(payment_fee_budget_usd)
+        self.allowed_symbols = frozenset(COMMERCE_SYMBOLS if allowed_symbols is None else allowed_symbols)
 
     def propose_payment(self, buyer, seller, amount_usd, purpose, source):
         return self._payment(buyer, seller, amount_usd, purpose, source, enqueue=True)
@@ -40,9 +42,11 @@ class PaymentRouter:
             raise ValueError('Payment must be positive and within configured demo cap')
         if not purpose or not source:
             raise ValueError('Plain-English purpose and request source are required')
-        catalog = {a['id']: a for a in self.backend.assets() if a.get('is_active')}
+        catalog = {a['id']: a for a in self.backend.assets() if a.get('is_active') and allowed(a, self.allowed_symbols)}
         policy = self.sellers[seller]  # Registered recipient/accepted-asset allowlist.
-        accepted = [catalog[a] for a in policy['accepted_asset_ids']]
+        accepted = [catalog[a] for a in policy['accepted_asset_ids'] if a in catalog]
+        if not accepted:
+            raise ValueError('Seller has no accepted asset on the commerce allowlist')
         holdings = self.backend.balances(buyer)
         mode = self.modes.get(buyer, 'pay_in_kind')
         if mode not in {'pay_in_kind', 'endowment', 'auto_top_up'}:
@@ -175,6 +179,11 @@ class PaymentRouter:
         return returned
 
     def _approved(self, proposal_id, plan):
+        for key in ('source_asset', 'target_asset', 'stable'):
+            if isinstance(plan.get(key), dict) and not allowed(plan[key], self.allowed_symbols):
+                raise ApprovalError('Planned asset is outside the current commerce allowlist')
+        if any(step.get('asset', '').upper() not in self.allowed_symbols for step in plan['proposal']['path']):
+            raise ApprovalError('Proposed asset is outside the current commerce allowlist')
         current = self.queue.approved(proposal_id)
         if fingerprint(current) != plan['fingerprint']:
             raise ApprovalError('Approved proposal differs from the original plan; propose again')
@@ -320,7 +329,9 @@ class PaymentRouter:
         """A separate pending proposal, never an implicitly approved payment side effect."""
         if not purpose or not source:
             raise ValueError('Purpose and source are required for every order')
-        catalog = {a['id']: a for a in self.backend.assets() if a.get('is_active')}
+        catalog = {a['id']: a for a in self.backend.assets() if a.get('is_active') and allowed(a, self.allowed_symbols)}
+        if asset_id not in catalog:
+            raise ValueError('Top-up asset must be active and on the commerce allowlist')
         target = catalog[asset_id]
         price = dec(limit_price)
         if price <= 0 or not target.get('tradeable') or target.get('type', 'spot') != 'spot':
@@ -365,7 +376,9 @@ class PaymentRouter:
         amount, minimum = dec(amount_usd), dec(min_output)
         if not purpose or not source or not 0 < amount <= self.max_payment or minimum <= 0:
             raise ValueError('Valid swap amount, output floor, purpose and source required')
-        catalog = {a['id']: a for a in self.backend.assets() if a.get('is_active')}
+        catalog = {a['id']: a for a in self.backend.assets() if a.get('is_active') and allowed(a, self.allowed_symbols)}
+        if source_id not in catalog or target_id not in catalog:
+            raise ValueError('Swap assets must be active API assets on the commerce allowlist')
         src, target = catalog[source_id], catalog[target_id]
         if src['id'] == target['id']:
             raise ValueError('Swap must change assets')

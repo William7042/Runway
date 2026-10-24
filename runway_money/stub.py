@@ -1,4 +1,4 @@
-"""Canned NVDAc demo. Never imports the SDK, signs, or submits a transaction."""
+"""Canned ETH demo. Never imports the SDK, signs, or submits a transaction."""
 from decimal import Decimal
 from uuid import uuid4
 from .queue import HTTPQueue
@@ -20,18 +20,18 @@ class StubRouter:
         gap = drift_bps(self.on_chain_price, self.reference_price)
         p = dict(id=str(uuid4()), buyer=buyer, seller=seller, purpose=purpose,
                  amount_usd=float(amount), path=[
-                     {"type": "swap", "asset": "NVDAc", "amount": str(amount / self.on_chain_price)},
+                     {"type": "swap", "asset": "ETH", "amount": str(amount / self.on_chain_price)},
                      {"type": "transfer", "asset": "USDC", "amount": str(amount)}],
                  expected_cost=0.001, alternatives=[],
                  drift={"on_chain_price": float(self.on_chain_price),
                         "reference_price": float(self.reference_price), "bps": float(gap)},
-                 flags=["SIMULATED: canned NVDAc prices and holdings; no funds move"],
+                 flags=["SIMULATED: canned ETH prices and holdings; no funds move"],
                  source=source, status="pending")
         if gap > self.max_drift_bps:
-            p['alternatives'] = [{'path': p['path'], 'rejected_reason': 'Simulated NVDAc drift exceeds threshold'}]
+            p['alternatives'] = [{'path': p['path'], 'rejected_reason': 'Simulated ETH drift exceeds threshold'}]
             p['path'] = [{'type': 'transfer', 'asset': 'USDC', 'amount': str(amount)}]
             p['expected_cost'] = 0
-            p['flags'].append('SIMULATED: pay stablecoin instead of selling NVDAc at excessive drift')
+            p['flags'].append('SIMULATED: pay stablecoin instead of selling ETH at excessive drift')
         return self.queue.create(p)
 
     def execute(self, proposal_id):

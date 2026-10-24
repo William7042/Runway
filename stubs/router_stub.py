@@ -40,16 +40,19 @@ def propose_payment(
     """Return a canned Proposal matching the shared contract.
 
     Real router (Person A) will quote paths from buyer balances. Stub always
-    proposes: swap a slice of NVDAc -> USDC, then transfer USDC to seller.
+    proposes: swap a slice of ETH -> USDC, then transfer USDC to seller.
     """
-    swap_amount = round(amount_usd / 140.0, 6)  # pretend NVDAc ~ $140
+    from runway_money.assets import COMMERCE_SYMBOLS
+    if preferred_asset not in COMMERCE_SYMBOLS:
+        raise ValueError('Asset is outside the commerce allowlist')
+    swap_amount = round(amount_usd / 3000.0, 6)  # pretend ETH ~ $3000
     path = [
-        PathStep(type="swap", asset="NVDAc", amount=swap_amount),
+        PathStep(type="swap", asset="ETH", amount=swap_amount),
         PathStep(type="transfer", asset=preferred_asset, amount=amount_usd),
     ]
     alt = AlternativePath(
         path=[PathStep(type="transfer", asset="USDC", amount=amount_usd)],
-        rejected_reason="Buyer USDC balance below amount; endowment prefers gains from NVDAc",
+        rejected_reason="Buyer USDC balance below amount; endowment prefers gains from ETH",
     )
     proposal = Proposal(
         id=f"prop_{uuid.uuid4().hex[:10]}",
@@ -60,8 +63,8 @@ def propose_payment(
         path=path,
         expected_cost=round(amount_usd * 0.003, 4),  # ~30 bps fees
         alternatives=[alt],
-        drift=DriftInfo(on_chain_price=140.12, reference_price=140.05, gap_pct=0.05),
-        flags=list(flags or []),
+        drift=DriftInfo(on_chain_price=3001.5, reference_price=3000.05, gap_pct=0.05),
+        flags=["SIMULATED: canned ETH price and balances; no funds move", *(flags or [])],
         source=source,
         status=ProposalStatus.PENDING,
     )
@@ -92,7 +95,7 @@ def execute(proposal_id: str) -> Receipt:
 
     if _dry_run():
         receipt = Receipt(
-            quote={"pair": "NVDAc/USDC", "amount_usd": proposal.amount_usd, "dry_run": True},
+            quote={"pair": "ETH/USDC", "amount_usd": proposal.amount_usd, "dry_run": True},
             fill={"filled": False, "reason": "DRY_RUN=1 — nothing signed or sent"},
             tx_hash="0xdryrun0000000000000000000000000000000000",
             status="dry_run",
@@ -102,7 +105,7 @@ def execute(proposal_id: str) -> Receipt:
 
     # Real path would call True Markets; stub never does.
     receipt = Receipt(
-        quote={"pair": "NVDAc/USDC", "amount_usd": proposal.amount_usd},
+        quote={"pair": "ETH/USDC", "amount_usd": proposal.amount_usd},
         fill={"filled": True, "amount_usd": proposal.amount_usd},
         tx_hash=f"0xstub{uuid.uuid4().hex[:40]}",
         status="executed",

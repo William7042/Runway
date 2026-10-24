@@ -27,7 +27,7 @@ def integrated(tmp_path, monkeypatch):
         queue = HTTPQueue(client=client)
         backend = Backend()
         router = PaymentRouter(backend, queue, {'seller': {'accepted_asset_ids': ['usd']}},
-                               state=State(tmp_path / 'plans'), prices=lambda asset: Decimal(1))
+                               allowed_symbols={'USDCOIN', 'TOKEN'}, state=State(tmp_path / 'plans'), prices=lambda asset: Decimal(1))
         yield router, backend, client
 
 

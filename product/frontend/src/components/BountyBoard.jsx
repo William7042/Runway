@@ -147,7 +147,10 @@ export default function BountyBoard({ bounties, proposals, api, refresh }) {
             <input type="number" step="0.01" min="0.01" value={form.price_usd} onChange={(e) => setForm({ ...form, price_usd: e.target.value })} />
             <select value={form.asset} onChange={(e) => setForm({ ...form, asset: e.target.value })}>
               <option>USDC</option>
-              <option>NVDAc</option>
+              <option>PYUSD</option>
+              <option>SOL</option>
+              <option>BTC</option>
+              <option>ETH</option>
             </select>
             <input placeholder="Deadline" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
           </div>

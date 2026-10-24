@@ -7,7 +7,7 @@
     "price_usd": 0.25,
     "accepted_assets": [
       "USDC",
-      "NVDAc"
+      "ETH"
     ],
     "endpoint": "http://localhost:8101/v1/filing",
     "wallet": "wallet_sim_filings",
@@ -34,7 +34,7 @@
     "price_usd": 0.35,
     "accepted_assets": [
       "USDC",
-      "NVDAc"
+      "ETH"
     ],
     "endpoint": "http://localhost:8103/v1/analyze",
     "wallet": "wallet_sim_sec_analyst",
