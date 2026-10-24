@@ -36,7 +36,7 @@ export default function TwoAgents() {
     finally { setBusy(false); }
   }
   return <main className="page agent-page">
-    <div className="page-title"><h1>Two agents.<br />One human in control.</h1><p>A buyer hires a specialist. You approve the payment before work begins.</p></div>
+    <div className="page-title"><h1>Tasks</h1><p>Give your agent a task. It plans, hires a specialist, and asks you before it pays.</p></div>
     <div className="agent-roles">
       <section><span className="label">BUYER / TEST</span><h2>Research lead</h2><p>Plans the task, requests payment, then summarizes the specialist’s answer.</p></section>
       <span className="agent-arrow" aria-hidden="true">→</span>

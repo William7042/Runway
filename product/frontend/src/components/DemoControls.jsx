@@ -1,8 +1,7 @@
 import React, { useState } from "react";
-import DriftGauge from "./DriftGauge.jsx";
 import "../styles/desk.css";
 
-/** Floating presenter panel: drift slider, attack trigger, reset. Kept off the main screen. */
+/** Floating presenter panel: attack trigger and reset. Kept off the main screen. */
 export default function DemoControls({ config, health, api, refresh, onReset }) {
   const [open, setOpen] = useState(false);
   return (
@@ -15,13 +14,7 @@ export default function DemoControls({ config, health, api, refresh, onReset }) 
               Close
             </button>
           </div>
-          <DriftGauge
-            config={config}
-            onChange={async (v) => {
-              await api.setConfig({ drift_pct: v });
-              refresh();
-            }}
-          />
+
           <div className="demo-actions">
             <button
               className="btn small"
