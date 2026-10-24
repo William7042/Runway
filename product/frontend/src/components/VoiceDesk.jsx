@@ -5,6 +5,15 @@ import { api } from "../api.js";
 // Agent ids are not secret. Fallback lets teammates run without .env.local.
 const AGENT_ID = import.meta.env.VITE_ELEVENLABS_AGENT_ID || "agent_4901m5qgkgf3e4js02cfx2jp1mqp";
 
+function voiceError(value, fallback) {
+  const message = typeof value === "string" ? value : value?.message || value?.closeReason || value?.context?.reason;
+  // Connection errors may contain signed URLs. Show the reason, never tokens.
+  return String(message || fallback)
+    .replace(/(https?:\/\/[^\s?]+)\?[^\s]+/gi, "$1?[redacted]")
+    .replace(/((?:token|authorization|api[_-]?key)\s*[:=]\s*)[^\s,;]+/gi, "$1[redacted]")
+    .slice(0, 600);
+}
+
 function compact(p, i) {
   return {
     ordinal: i + 1,
@@ -71,7 +80,12 @@ function Panel({ onDecided }) {
       const who = m.source === "user" || m.role === "user" ? "You" : "Desk";
       setLines((prev) => [...prev.slice(-49), { who, text }]);
     },
-    onError: (e) => setErr(typeof e === "string" ? e : "The voice agent is unreachable. Check your connection."),
+    onError: (e) => setErr(voiceError(e, "The voice session failed. Try again.")),
+    onDisconnect: (details) => {
+      if (details?.reason === "user") return;
+      const message = voiceError(details, "The voice service ended the session before a response.");
+      setErr((previous) => previous || message);
+    },
   });
 
   const live = conv.status === "connected";
@@ -92,8 +106,8 @@ function Panel({ onDecided }) {
     }
     try {
       await conv.startSession({ agentId: AGENT_ID, connectionType: "webrtc" });
-    } catch {
-      setErr("Could not reach the voice agent. Check your connection.");
+    } catch (error) {
+      setErr(voiceError(error, "Could not reach the voice agent. Check your connection."));
     }
   }, [conv, live, busy]);
 
