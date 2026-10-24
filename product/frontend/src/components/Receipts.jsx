@@ -1,5 +1,6 @@
 import React from "react";
 import { usd, ago } from "../format.js";
+import "../styles/desk.css";
 
 const cost = (x) => (x && typeof x === "object" ? x.cost_usd ?? x.total_usd ?? x.price : x);
 
@@ -22,23 +23,23 @@ export function ReceiptRow({ p }) {
   return (
     <div className={`receipt ${r.status === "failed" ? "failed" : ""}`}>
       <div className="receipt-top">
-        <span className={`pill ${r.status === "failed" ? "pill-bad" : "pill-ok"}`}>{r.status}</span>
-        <span className="strong">{usd(p.amount_usd)}</span>
-        <span className="muted small">→ {p.seller}</span>
-        <span className="muted small push">{ago(r.at)}</span>
+        <div className="grow">
+          <div className="receipt-title">{p.seller}</div>
+          <div className="receipt-sub">{ago(r.at)} · <TxHash hash={r.tx_hash} stub={r.stub} /></div>
+        </div>
+        <div className="right">
+          <div className="receipt-amt num">{usd(p.amount_usd)}</div>
+          {r.status === "failed" ? (
+            <span className="pill pill-bad">failed</span>
+          ) : (
+            diff !== null && (
+              <div className={`receipt-diff num ${diff > 0 ? "danger" : "good"}`}>
+                {diff === 0 ? "filled at quote" : `${diff > 0 ? "+" : ""}${usd(diff, 5)} vs quote`}
+              </div>
+            )
+          )}
+        </div>
       </div>
-      <div className="small">{p.purpose}</div>
-      <div className="receipt-q small">
-        <span>quote cost <span className="mono">{usd(q, 5)}</span></span>
-        <span>fill cost <span className="mono">{usd(f, 5)}</span></span>
-        {diff !== null && (
-          <span className={diff > 0 ? "danger" : "good"}>
-            {diff > 0 ? "+" : ""}
-            {usd(diff, 5)} {diff > 0 ? "slippage" : "improvement"}
-          </span>
-        )}
-      </div>
-      <TxHash hash={r.tx_hash} stub={r.stub} />
     </div>
   );
 }

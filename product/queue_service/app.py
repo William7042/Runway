@@ -265,7 +265,7 @@ def _stub_receipt(p: dict) -> dict:
     slip = round(random.uniform(-0.00005, 0.00012), 6)
     return {
         "quote": {"amount_usd": p["amount_usd"], "cost_usd": quoted_cost},
-        "fill": {"amount_usd": p["amount_usd"], "cost_usd": round(quoted_cost + slip, 6)},
+        "fill": {"amount_usd": p["amount_usd"], "cost_usd": max(0.0, round(quoted_cost + slip, 6))},
         "tx_hash": "STUB-" + uuid.uuid4().hex[:16],
         "status": "executed",
         "stub": True,

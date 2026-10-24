@@ -104,9 +104,11 @@ export default function App() {
       {tab === "desk" && (
         <main className="desk">
           <div className="stack">
-            <div className="section-head">
-              <h2>Needs your approval</h2>
-              <span className="muted small">No auto-approve. Every order is reviewed one at a time.</span>
+            <div className="page-title">
+              <h1>Approvals</h1>
+              <p>
+                <span className="strong">{pending.length} waiting</span> · No auto-approve. Every order is reviewed one at a time.
+              </p>
             </div>
             {pending.length === 0 && <div className="empty">Nothing waiting. The agent will ask before it spends.</div>}
             {pending.map((p) => (
@@ -115,9 +117,7 @@ export default function App() {
 
             {blocked.length > 0 && (
               <>
-                <div className="section-head">
-                  <h2 className="danger">Blocked before reaching you</h2>
-                </div>
+                <h2 className="section-title danger">Blocked before reaching you</h2>
                 {blocked.slice(0, 2).map((p) => (
                   <BlockedCard key={p.id} p={p} />
                 ))}
@@ -126,17 +126,18 @@ export default function App() {
 
             {recent.length > 0 && (
               <>
-                <div className="section-head">
-                  <h2>Recently decided</h2>
-                </div>
+                <h2 className="section-title">Recently decided</h2>
                 <div className="recent">
                   {recent.map((p) => (
                     <div key={p.id} className="recent-row">
+                      <div className="grow">
+                        <div className="recent-title">{p.seller}</div>
+                        <div className="recent-sub">
+                          {p.decision?.reason ? `“${p.decision.reason}”` : p.purpose}
+                        </div>
+                      </div>
                       <span className={`pill pill-${p.status}`}>{p.status}</span>
-                      <span className="grow">{p.purpose}</span>
-                      <span className="mono">{usd(p.amount_usd)}</span>
-                      {p.decision?.reason && <span className="muted small">“{p.decision.reason}”</span>}
-                      <span className="muted small">{ago(p.decision?.at)}</span>
+                      <span className="recent-amt num">{usd(p.amount_usd)}</span>
                     </div>
                   ))}
                 </div>
@@ -160,12 +161,20 @@ export default function App() {
 
       {tab === "bounties" && (
         <main className="page">
+          <div className="page-title">
+            <h1>Bounties</h1>
+            <p>Hire humans and agents. Every payout is approved like any other order.</p>
+          </div>
           <BountyBoard bounties={state.bounties} proposals={state.proposals} api={api} refresh={refresh} />
         </main>
       )}
 
       {tab === "ledger" && (
         <main className="page">
+          <div className="page-title">
+            <h1>Ledger</h1>
+            <p>Every proposal, decision and fill, with quote versus fill.</p>
+          </div>
           <Ledger proposals={state.proposals} balances={state.balances} />
         </main>
       )}

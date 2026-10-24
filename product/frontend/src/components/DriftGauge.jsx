@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import "../styles/desk.css";
 
 const MAX = 5; // gauge scale, in %
 
@@ -34,9 +35,8 @@ export default function DriftGauge({ config, onChange }) {
         <h2>NVDAc price drift</h2>
         <span className={`pill ${bad ? "pill-bad" : "pill-ok"}`}>{bad ? "Selling paused" : "OK to sell"}</span>
       </div>
-      <p className="muted small">
-        Gap between the on-chain NVDAc price and the reference Nvidia price. Above {threshold}% the router refuses to
-        sell tokenized stock and pays from USDC or waits.
+      <p className="panel-note">
+        On-chain NVDAc vs. the real Nvidia price. Above {threshold}%, the agent won't sell and pays from USDC instead.
       </p>
       <div className="gauge-number">
         <span className={bad ? "danger" : ""}>{Number(local).toFixed(1)}%</span>
