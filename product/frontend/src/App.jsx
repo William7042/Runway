@@ -6,11 +6,13 @@ import DriftGauge from "./components/DriftGauge.jsx";
 import Balances from "./components/Balances.jsx";
 import ReceiptsFeed from "./components/Receipts.jsx";
 import BountyBoard from "./components/BountyBoard.jsx";
+import TwoAgents from "./components/TwoAgents.jsx";
 import Ledger from "./components/Ledger.jsx";
 import { usd, ago } from "./format.js";
 
 const TABS = [
   ["desk", "Approval desk"],
+  ["agents", "Two agents"],
   ["bounties", "Bounty board"],
   ["ledger", "Ledger"],
 ];
@@ -158,6 +160,8 @@ export default function App() {
           </aside>
         </main>
       )}
+
+      {tab === "agents" && <TwoAgents />}
 
       {tab === "bounties" && (
         <main className="page">
