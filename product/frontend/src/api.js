@@ -28,6 +28,9 @@ export const api = {
   verify: (id, decision, reason = "") => req("POST", `/bounties/${id}/verify`, { decision, reason }),
   specialists: () => req("GET", "/specialists"),
   registerSpecialist: (body) => req("POST", "/specialists", body),
+  updateSpecialist: (id, body) => req("PATCH", `/specialists/${id}`, body),
+  sellerJobs: (id, owner_token) => req("POST", `/specialists/${id}/jobs`, { owner_token }),
+  submitResult: (jobId, owner_token, result) => req("POST", `/specialist-jobs/${jobId}/result`, { owner_token, result }),
   attack: () => req("POST", "/demo/attack"),
   reset: () => req("POST", "/demo/reset"),
 };
