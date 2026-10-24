@@ -48,6 +48,20 @@ function Panel({ onDecided }) {
           return `Error: could not read the queue. ${e.message}`;
         }
       },
+      get_wallet_balance: async () => {
+        try {
+          const all = await api.balances();
+          const out = Object.entries(all).map(([id, w]) => ({
+            wallet: id,
+            label: w.label,
+            total_usd: Math.round((w.assets || []).reduce((t, a) => t + (a.usd_value || 0), 0) * 100) / 100,
+            assets: (w.assets || []).map((a) => ({ asset: a.asset, amount: a.amount, usd_value: a.usd_value })),
+          }));
+          return JSON.stringify(out);
+        } catch (e) {
+          return `Error: could not read wallet balances. ${e.message}`;
+        }
+      },
       approve_proposal: ({ proposal_id }) => decideTool(proposal_id, "approve", "", onDecided),
       reject_proposal: ({ proposal_id, reason }) => decideTool(proposal_id, "reject", reason, onDecided),
     },
