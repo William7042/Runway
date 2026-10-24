@@ -193,3 +193,12 @@ mark.injected, .injected { background: var(--bad); color: #000; padding: 0 3px; 
 .hero { max-width: none; }
 .hero h1 { font-size: clamp(36px, min(4.5vw, 8.5vh), 80px); }
 @media (max-width: 760px) { .hero-accent { white-space: normal; } }
+/* Cursor glow lights the background only: card surfaces are solid so it can't shine through */
+:root { --surface-solid: #111317; }
+.card, .panel, .stat, .upnext-list, .recent, .problem, .step-card, .subtabs, .agent-compose, .agent-run, .demo-panel {
+  background-color: var(--surface-solid);
+}
+.card.blocked { background: linear-gradient(180deg, #2a1412, var(--surface-solid) 55%); }
+.treasury-banner { background: linear-gradient(135deg, #1b2210 0%, var(--surface-solid) 55%); }
+.l-final { background: linear-gradient(180deg, #171d0c, var(--surface-solid)); }
+.step-key { background: var(--lime); }
