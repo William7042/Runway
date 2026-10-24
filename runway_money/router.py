@@ -26,6 +26,13 @@ class PaymentRouter:
         self.top_up_targets = top_up_targets or {}
 
     def propose_payment(self, buyer, seller, amount_usd, purpose, source):
+        return self._payment(buyer, seller, amount_usd, purpose, source, enqueue=True)
+
+    def draft_payment(self, buyer, seller, amount_usd, purpose, source):
+        """Agent adapter: policy and verifier finish before one queue creation."""
+        return self._payment(buyer, seller, amount_usd, purpose, source, enqueue=False)
+
+    def _payment(self, buyer, seller, amount_usd, purpose, source, *, enqueue):
         amount = dec(amount_usd)
         if amount <= 0 or amount > self.max_payment:
             raise ValueError('Payment must be positive and within configured demo cap')
@@ -139,6 +146,8 @@ class PaymentRouter:
         plan.update({'proposal': proposal, 'fingerprint': fingerprint(proposal),
                      'created_at': time.time(), 'phase': 'pending'})
         self.state.write(proposal['id'], plan)
+        if not enqueue:
+            return proposal
         returned = self.queue.create(proposal)
         if returned.get('status') != 'pending' or fingerprint(returned) != plan['fingerprint']:
             raise ApprovalError('Queue altered proposal or approved it without a human decision')
@@ -163,6 +172,8 @@ class PaymentRouter:
                 self.queue.receipt(proposal_id, plan['receipt'])
                 return plan['receipt']
             self._approved(proposal_id, plan)
+            if plan.get('kind') == 'swap':
+                return self._execute_swap(proposal_id, plan)
             if plan.get('kind') == 'top_up':
                 return self._execute_top_up(proposal_id, plan)
             if plan['phase'] != 'pending':
@@ -203,6 +214,8 @@ class PaymentRouter:
                         dec(current_quote['fee']) > dec(quote['fee'])):
                         raise ValueError('Prepared order exceeds approved quote bounds')
                     plan['phase'] = 'order_submitting'
+                    if hasattr(self.backend, 'preflight'):
+                        self.backend.preflight(buyer, 'orders', prepared, plan)
                     self.state.write(proposal_id, plan)
                     self.backend.submit(buyer, 'orders', prepared, guard)
                     fill = self.backend.confirm(buyer, 'orders', prepared['order_id'])
@@ -228,6 +241,8 @@ class PaymentRouter:
                     fee > dec(plan.get('transfer_fee_usd', 0))):
                     raise ValueError('Prepared transfer differs from approved amount, destination, or cost')
                 plan['phase'] = 'transfer_submitting'
+                if hasattr(self.backend, 'preflight'):
+                    self.backend.preflight(buyer, 'transfers', transfer, plan)
                 self.state.write(proposal_id, plan)
                 self.backend.submit(buyer, 'transfers', transfer, guard)
                 fill = self.backend.confirm(buyer, 'transfers', transfer['id'])
@@ -324,6 +339,95 @@ class PaymentRouter:
             raise ApprovalError('Queue altered or automatically approved the limit proposal')
         return result
 
+    def propose_swap(self, buyer, source_id, target_id, amount_usd, min_output, purpose, source):
+        amount, minimum = dec(amount_usd), dec(min_output)
+        if not purpose or not source or not 0 < amount <= self.max_payment or minimum <= 0:
+            raise ValueError('Valid swap amount, output floor, purpose and source required')
+        catalog = {a['id']: a for a in self.backend.assets() if a.get('is_active')}
+        src, target = catalog[source_id], catalog[target_id]
+        if src['id'] == target['id']:
+            raise ValueError('Swap must change assets')
+        quantity = amount / dec(self.prices(src))
+        available = next((dec(b['available']) for b in self.backend.balances(buyer)
+                          if b['asset_id'] == source_id), Decimal(0))
+        if quantity > available:
+            raise ValueError('Insufficient funded source asset')
+        maximum_cost = max(Decimal(0), amount - minimum * dec(self.prices(target)))
+        if maximum_cost > self.max_fee or maximum_cost / amount * 10000 > self.max_impact:
+            raise ValueError('Minimum swap output permits more loss than the configured cost limit')
+        kind, prepared = self.backend.prepare_swap(buyer, src, target, quantity)
+        plan = dict(kind='swap', source_asset=src, target_asset=target, input_qty=str(quantity),
+                    pay_qty=str(minimum), recipient=None, submit_kind=kind,
+                    created_at=time.time(), phase='pending')
+        # Verify before approval too: the card reflects actual simulated economics.
+        evidence = self.backend.preflight(buyer, kind, prepared, plan)
+        p = dict(id=str(uuid4()), buyer=buyer, seller=buyer, purpose=purpose,
+                 amount_usd=float(amount), path=[{'type':'swap','asset':src['symbol'],'amount':str(quantity)}],
+                 expected_cost=float(maximum_cost), alternatives=[], drift=None,
+                 flags=[f'STANDALONE SWAP: receive at least {minimum} {target["symbol"]} in the same wallet',
+                        f'Spend at most {quantity} {src["symbol"]}; maximum reference-value cost ${maximum_cost}',
+                        'Unsigned simulation passed; no seller transfer is included',
+                        'Transfer execution remains held after the earlier fee discrepancy'],
+                 source=source, status='pending')
+        if getattr(self, 'swap_policy_note', None):
+            p['flags'].append(self.swap_policy_note)
+        plan.update(proposal=p, fingerprint=fingerprint(p), preflight={k:str(v) for k,v in evidence.items()})
+        self.state.write(p['id'], plan)
+        result = self.queue.create(p)
+        if result['status'] != 'pending' or fingerprint(result) != plan['fingerprint']:
+            raise ApprovalError('Queue changed or automatically approved the swap')
+        return result
+
+    def _execute_swap(self, ident, plan):
+        if dry_run():
+            return {'quote': {'dry_run':True, 'path':plan['proposal']['path'],
+                              'minimum_output':plan['pay_qty']}, 'fill':None,
+                    'tx_hash':None, 'status':'approved'}
+        approval = self._approved(ident, plan)
+        approved_at = (approval.get('decision') or {}).get('at', time.time())
+        if plan['phase'] != 'pending' or time.time() - approved_at > 300:
+            raise ValueError('Swap approval expired or execution already started; do not blindly retry')
+        # The transfer hold stays in place. This isolated conversion has mandatory
+        # independent simulation and a new, explicit human approval.
+        buyer = plan['proposal']['buyer']
+        kind, prepared = self.backend.prepare_swap(buyer, plan['source_asset'], plan['target_asset'],
+                                                   dec(plan['input_qty']))
+        self.backend.preflight(buyer, kind, prepared, plan)
+        guard = lambda: self._approved(ident, plan)
+        guard()
+        plan['phase'], plan['prepared'] = 'swap_submitting', public(prepared)
+        self.state.write(ident, plan)
+        try:
+            submitted = self.backend.submit(buyer, kind, prepared, guard)
+            plan['submitted'] = public(submitted)
+            self.state.write(ident, plan)
+            if kind == 'trades' and submitted.get('tx_hash'):
+                # Legacy DeFi order IDs are not necessarily Gateway-readable.
+                # The chain audit below is authoritative confirmation.
+                fill = {**public(submitted), 'status':'complete'}
+            else:
+                fill = self.backend.confirm(buyer, 'orders', submitted.get('order_id') or prepared['order_id'])
+            plan['confirmed_fill'] = fill
+            self.state.write(ident, plan)
+            if fill.get('tx_hash') and hasattr(self.backend, 'audit_swap'):
+                quality = self.backend.audit_swap(buyer, fill['tx_hash'], plan)
+                fill['execution_quality'] = quality
+                if not quality['matched_approved_bounds']:
+                    self.state.hold({'proposal_id':ident,'tx_hash':fill['tx_hash'],'execution_quality':quality})
+                    fill['status'] = 'failed'
+            receipt = {'quote': {'maximum_input':plan['input_qty'], 'minimum_output':plan['pay_qty'],
+                                  'prepared':public(prepared)}, 'fill':fill,
+                       'tx_hash':fill.get('tx_hash'),
+                       'status':'executed' if fill['status'] == 'complete' and fill.get('tx_hash') else 'failed'}
+        except Exception as e:
+            receipt = {'quote':public(prepared), 'fill':{'error_type':type(e).__name__,
+                       'needs_reconciliation':True, 'submitted':plan.get('submitted')},
+                       'tx_hash':(plan.get('confirmed_fill') or plan.get('submitted') or {}).get('tx_hash'), 'status':'failed'}
+        plan['receipt'], plan['phase'] = receipt, receipt['status']
+        self.state.write(ident, plan)
+        self.queue.receipt(ident, receipt)
+        return receipt
+
     def _execute_top_up(self, ident, plan):
         p = plan['proposal']
         if dry_run():
@@ -391,7 +495,7 @@ def build_router():
         config = json.load(f)
     return PaymentRouter(TrueMarketsBackend(signer_files=config['signer_files'],
                                              asset_metadata=config.get('asset_metadata')),
-                         HTTPQueue(os.getenv('RUNWAY_QUEUE_URL', 'http://localhost:8000')),
+                         HTTPQueue(os.getenv('RUNWAY_QUEUE_URL', 'http://localhost:8000'), strict_live=True),
                          config['sellers'], modes=config.get('modes'),
                          top_up_targets=config.get('top_up_targets'),
                          max_payment_usd=os.getenv('RUNWAY_MAX_PAYMENT_USD', '1'),

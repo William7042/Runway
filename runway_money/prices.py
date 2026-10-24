@@ -34,7 +34,25 @@ class ReferencePrices:
                                 params={'ids': asset['slug'], 'vs_currencies': 'usd',
                                         'include_last_updated_at': 'true'})
             r.raise_for_status()
-            item = r.json()[asset['slug']]
+            data = r.json()
+            price_id = asset['slug']
+            if price_id not in data:
+                # Catalog slugs are not necessarily CoinGecko IDs (e.g. a
+                # ticker-like slug). Resolve by exact name + symbol, fail on ambiguity.
+                search = self.client.get('https://api.coingecko.com/api/v3/search',
+                                         params={'query':asset['name']})
+                search.raise_for_status()
+                matches = [c['id'] for c in search.json()['coins']
+                           if c['symbol'].casefold() == symbol.casefold()
+                           and c['name'].casefold() == asset['name'].casefold()]
+                if len(matches) != 1:
+                    raise ValueError('Independent price asset identity is ambiguous')
+                price_id = matches[0]
+                r = self.client.get('https://api.coingecko.com/api/v3/simple/price',
+                    params={'ids':price_id,'vs_currencies':'usd','include_last_updated_at':'true'})
+                r.raise_for_status()
+                data = r.json()
+            item = data[price_id]
             if time.time() - item['last_updated_at'] > 300:
                 raise ValueError('Crypto reference price is stale')
             value = Decimal(str(item['usd']))

@@ -50,3 +50,9 @@ These are catalog entries marked tradeable, grouped by chain/venue. They are **n
 ## Confirmed live result and execution hold
 
 The agent/product work was fetched from origin/main at c290847. Person C's real queue was started with STUB_EXECUTOR=0. After the human authorized a $5 cap and approved the concrete proposal in the dashboard, dry-run succeeded and a real 5 PYUSD transfer confirmed. Actual balances are test=45 PYUSD, test2=4 PYUSD. RPC audit shows 1 PYUSD went to a separate wallet; the network fee was 0.00001 SOL. Preparation had incorrectly reported zero fee. See RECONCILIATION.md. Further execution is held. No swap/order has been executed.
+
+## Real swap/order access verified
+
+- PYUSD/USDC: the legacy DeFi quote/trade endpoint accepts a 2 PYUSD sell as one unsigned transaction, despite PYUSD not being an orderable Gateway asset. A $1 quote was below minimum. Approved execution spent 2 PYUSD and returned 1.996651 USDC (chain-audited).
+- SOL/USDC: funded USDC removes the bridge. Gateway created a single-payload SOL order; human-approved execution spent 1 USDC and returned 0.00945721 SOL (chain-audited). The receipt is executed with hash 5QFRqXWGZ1EXLngMqreRifvpBxpT14BgcUKMPdRTJrXCHaf5fgWBRVzXS9AaVonfu8Wb5GVoca4zqLHCh3B8pRck.
+- Raw quotes overstated net SOL receipts; unsigned simulation exposed the difference. The human authorized a one-off cost allowance up to $0.07 before approving this order. Normal limits stay unchanged. No NVDAc access was found.

@@ -26,6 +26,7 @@ class TrueMarketsBackend:
         self.signer_files = signer_files or {}
         self.users = {}
         self.asset_metadata = asset_metadata or {}
+        self._checked_digests = set()
 
     def user(self, name):
         if name not in self.users:
@@ -117,6 +118,34 @@ class TrueMarketsBackend:
             raise ValueError('Live orders must use unsigned DeFi preparation')
         return self.call(buyer, 'POST', '/v1/gateway/orders', body)
 
+    def prepare_swap(self, buyer, source, target, quantity):
+        """Stable conversion uses DeFi quote/trade; token buys use Gateway orders."""
+        if source['chain'] != 'solana' or target['chain'] != 'solana':
+            raise ValueError('Guarded standalone swap currently supports Solana only')
+        if not source.get('stable'):
+            raise ValueError('Standalone demo swap must spend a stablecoin')
+        if target.get('stable'):
+            result = self.call(buyer, 'POST', '/v1/defi/core/quote', {
+                'chain': 'solana', 'base_asset': source['address'], 'quote_asset': target['address'],
+                'order_side': 'sell', 'qty': str(quantity), 'qty_unit': 'base', 'order_type': 'market'})
+            kind = 'trades'
+            if result.get('base_asset') != source['address'] or result.get('quote_asset') != target['address']:
+                raise ValueError('Stable conversion changed its asset pair')
+        else:
+            if not target.get('tradeable') or target.get('type', 'spot') != 'spot':
+                raise ValueError('Swap target is not a tradable spot asset')
+            result = self.call(buyer, 'POST', '/v1/gateway/orders', {
+                'asset_id': target['id'], 'qty': str(quantity), 'qty_unit': 'quote',
+                'side': 'buy', 'type': 'market', 'venue': 'defi'})
+            kind = 'orders'
+            q = result.get('quote', {})
+            if q.get('quote_asset') != source['address'] or q.get('base_asset') != target['address']:
+                raise ValueError('Gateway order changed its settlement pair')
+        q = result.get('quote', result)
+        if q.get('issues') or q.get('bridge_state') or len(result.get('payloads', [])) != 1:
+            raise ValueError('Swap has quote issues or requires an unverified bridge')
+        return kind, result
+
     def limit_preview(self, buyer, asset, stable, quantity, price):
         """CeFi has a nonbinding compute_quote; DeFi limit support varies."""
         if asset.get('venue') != 'cefi' or stable.get('venue') != 'cefi':
@@ -147,7 +176,12 @@ class TrueMarketsBackend:
     def preview_transfer(self, buyer, asset_id, quantity, recipient):
         # Unsigned preparation verifies vendor minima and fees before asking a
         # human to approve an otherwise impossible pay-in-kind payment.
-        return public(self.prepare_transfer(buyer, asset_id, quantity, recipient))
+        prepared = self.prepare_transfer(buyer, asset_id, quantity, recipient)
+        asset = next(a for a in self.assets() if a['id'] == asset_id)
+        self.preflight(buyer, 'transfers', prepared, {
+            'source_asset':asset, 'target_asset':asset, 'input_qty':str(quantity),
+            'pay_qty':str(quantity), 'recipient':recipient})
+        return public(prepared)
 
     def submit(self, buyer, kind, prepared, guard):
         if dry_run():
@@ -156,6 +190,8 @@ class TrueMarketsBackend:
         payloads = prepared.get('payloads', [])
         if not payloads:
             raise ValueError('Expected unsigned signing payloads')
+        if any(p['digest'] not in self._checked_digests for p in payloads):
+            raise ValueError('Unsigned transaction economics have not passed preflight')
         for p in payloads:
             if hashlib.sha256(p['payload'].encode()).hexdigest() != p['digest']:
                 raise ValueError('Signing payload digest mismatch')
@@ -181,9 +217,48 @@ class TrueMarketsBackend:
         guard()
         if dry_run():
             raise RuntimeError('DRY_RUN prevents submission')
+        if kind == 'trades':
+            return self.call(buyer, 'POST', '/v1/defi/core/trade', {
+                'quote_id': prepared['quote_id'], 'signatures': signatures, 'auth_type': 'api_key'})
         ident = prepared['order_id'] if kind == 'orders' else prepared['id']
         return self.call(buyer, 'POST', f'/v1/gateway/{kind}/{ident}/execute',
                          {'signatures': signatures, 'auth_type': 'api_key'})
+
+    def preflight(self, buyer, kind, prepared, plan):
+        from .preflight import SolanaPreflight
+        if plan['source_asset']['chain'] != 'solana':
+            raise ValueError('Live preflight currently supports Solana only')
+        wallet = next(w['address'] for w in self.user(buyer)['wallets'] if w['chain_family'] == 'solana')
+        result = SolanaPreflight(os.getenv('RUNWAY_SOLANA_RPC', 'https://api.mainnet-beta.solana.com')).verify(
+            prepared, wallet, input_asset=plan['source_asset'], output_asset=plan['target_asset'],
+            max_input=plan['input_qty'], min_output=plan['pay_qty'],
+            recipient=plan['recipient'] if kind == 'transfers' else None)
+        self._checked_digests.add(result['digest'])
+        return {k: v for k, v in result.items() if k != 'token_deltas'}
+
+    def audit_swap(self, buyer, tx_hash, plan):
+        import httpx
+        from .preflight import token_deltas
+        wallet = next(w['address'] for w in self.user(buyer)['wallets'] if w['chain_family'] == 'solana')
+        response = httpx.post(os.getenv('RUNWAY_SOLANA_RPC', 'https://api.mainnet-beta.solana.com'),
+            json={'jsonrpc':'2.0','id':1,'method':'getTransaction',
+                  'params':[tx_hash,{'encoding':'jsonParsed','maxSupportedTransactionVersion':0}]}, timeout=20)
+        response.raise_for_status()
+        tx = response.json().get('result')
+        if not tx or tx['meta']['err'] is not None:
+            raise ValueError('Confirmed swap chain evidence unavailable')
+        meta = tx['meta']
+        deltas = token_deltas(meta, wallet)
+        keys = tx['transaction']['message']['accountKeys']
+        index = next(i for i,k in enumerate(keys) if (k['pubkey'] if isinstance(k,dict) else k) == wallet)
+        native = (dec(meta['postBalances'][index]) - dec(meta['preBalances'][index])) / 10**9
+        src, target = plan['source_asset'], plan['target_asset']
+        spent = -deltas.get(src['address'], Decimal(0))
+        received = deltas.get(target['address'], Decimal(0)) + (native if target['symbol'] == 'SOL' else 0)
+        matched = (0 <= spent <= dec(plan['input_qty']) and received >= dec(plan['pay_qty']) and native >= 0
+                   and not any(v < 0 and k != src['address'] for k,v in deltas.items()))
+        return {'matched_approved_bounds': matched, 'actual_input':str(spent),
+                'actual_output':str(received), 'network_fee_lamports':meta['fee']}
 
     def confirm(self, buyer, kind, ident, timeout=45):
         deadline = time.monotonic() + timeout

@@ -7,8 +7,9 @@ class ApprovalError(RuntimeError):
 
 
 class HTTPQueue:
-    def __init__(self, url="http://localhost:8000", client=None):
+    def __init__(self, url="http://localhost:8000", client=None, strict_live=False):
         self.client = client or httpx.Client(base_url=url, timeout=15)
+        self.strict_live = strict_live
 
     def create(self, proposal):
         r = self.client.post("/proposals", json=proposal)
@@ -24,6 +25,12 @@ class HTTPQueue:
         return next((p for p in items if p["id"] == proposal_id), None)
 
     def approved(self, proposal_id):
+        if self.strict_live:
+            health = self.client.get('/health')
+            if health.status_code != 404:
+                health.raise_for_status()
+                if health.json().get('stub_executor'):
+                    raise ApprovalError('Disable Person C simulated executor before live execution')
         p = self.get(proposal_id)
         if not p or p["status"] != "approved":
             raise ApprovalError("Human approval required in the queue")

@@ -392,3 +392,58 @@ def test_unquoted_fee_and_short_payment_fail_receipt_and_hold_future_execution(s
     with pytest.raises(RuntimeError, match='hold'):
         router.execute(another['id'])
     assert backend.submissions == ['transfers']
+
+
+def test_standalone_swap_requires_new_approval_and_audit_before_success(setup, monkeypatch):
+    router, backend, queue = setup
+    backend.prepare_swap = lambda *args: ('orders', {'order_id':'swap1','quote':{'qty_out':'1'}})
+    backend.preflight = lambda *args: {'digest':'verified', 'native_delta':0}
+    backend.audit_swap = lambda *args: {'matched_approved_bounds':True,'actual_input':'1','actual_output':'.999'}
+    submit = backend.submit
+    def submit_order(*args):
+        submit(*args)
+        return {'order_id':'swap1'}
+    backend.submit = submit_order
+    p = router.propose_swap('buyer','usd','token',1,'.995','Convert stablecoin','human request')
+    with pytest.raises(ApprovalError): router.execute(p['id'])
+    approve(queue,p)
+    assert router.execute(p['id'])['quote']['dry_run']
+    assert backend.submissions == []
+    monkeypatch.setenv('DRY_RUN','0')
+    r = router.execute(p['id'])
+    assert r['status'] == 'executed' and r['fill']['execution_quality']['matched_approved_bounds']
+    router.execute(p['id'])
+    assert backend.submissions == ['orders']
+
+
+def test_standalone_swap_failed_preflight_cannot_sign(setup, monkeypatch):
+    router, backend, queue = setup
+    backend.prepare_swap = lambda *args: ('orders', {'order_id':'swap1','quote':{'qty_out':'1'}})
+    backend.preflight = lambda *args: {'digest':'verified'}
+    p = router.propose_swap('buyer','usd','token',1,'.995','Convert stablecoin','human request')
+    approve(queue,p)
+    def fail(*args): raise ValueError('hidden debit')
+    backend.preflight = fail
+    monkeypatch.setenv('DRY_RUN','0')
+    with pytest.raises(ValueError,match='hidden debit'):
+        router.execute(p['id'])
+    assert backend.submissions == [] and router.state.read(p['id'])['phase'] == 'pending'
+
+
+def test_legacy_defi_trade_is_confirmed_by_chain_audit_not_gateway_lookup(setup, monkeypatch):
+    router, backend, queue = setup
+    backend.prepare_swap = lambda *args: ('trades', {'quote_id':'quote1','qty_out':'1'})
+    backend.preflight = lambda *args: {'digest':'verified'}
+    submit = backend.submit
+    def trade(*args):
+        submit(*args)
+        return {'order_id':'legacy-id','tx_hash':'confirmed-legacy-tx','status':'FILLED'}
+    backend.submit = trade
+    def fail_lookup(*args): raise AssertionError('Legacy IDs do not belong to Gateway')
+    backend.confirm = fail_lookup
+    backend.audit_swap = lambda *args: {'matched_approved_bounds':True,'actual_input':'1','actual_output':'.999'}
+    p=router.propose_swap('buyer','usd','token',1,'.995','Convert stablecoin','human request')
+    approve(queue,p)
+    monkeypatch.setenv('DRY_RUN','0')
+    r=router.execute(p['id'])
+    assert r['status']=='executed' and r['tx_hash']=='confirmed-legacy-tx'

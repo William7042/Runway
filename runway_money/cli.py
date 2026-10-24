@@ -43,6 +43,10 @@ def main():
     propose.add_argument('--source', required=True)
     execute = sub.add_parser('execute')
     execute.add_argument('proposal_id')
+    swap = sub.add_parser('swap', help='Prepare a standalone conversion for human approval')
+    for name in ('buyer', 'from-asset', 'to-asset', 'amount', 'minimum', 'purpose', 'source'):
+        swap.add_argument('--' + name, required=True)
+    swap.add_argument('--chain', default='solana')
     sub.add_parser('wallet').add_argument('name')
     args = parser.parse_args()
     try:
@@ -52,6 +56,16 @@ def main():
             result = get_router().propose_payment(args.buyer, args.seller, args.amount, args.purpose, args.source)
         elif args.command == 'execute':
             result = get_router().execute(args.proposal_id)
+        elif args.command == 'swap':
+            router = get_router()
+            assets = router.backend.assets()
+            def asset_id(symbol):
+                matches = [a['id'] for a in assets if a['symbol'] == symbol and a['chain'] == args.chain and a['venue'] == 'defi']
+                if len(matches) != 1:
+                    raise ValueError('Asset symbol must uniquely identify a discovered DeFi listing')
+                return matches[0]
+            result = router.propose_swap(args.buyer, asset_id(args.from_asset), asset_id(args.to_asset),
+                                        args.amount, args.minimum, args.purpose, args.source)
         else:
             result = get_router().create_wallet(args.name)
         print(json.dumps(result, indent=2))
