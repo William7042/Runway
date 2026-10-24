@@ -162,4 +162,9 @@ mark.injected, .injected { background: var(--bad); color: #000; padding: 0 3px; 
 @keyframes voice-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(210,255,57,0.55); } 50% { box-shadow: 0 0 0 6px rgba(210,255,57,0); } }
 .voice-status { font-family: var(--mono-f); font-size: 11px; letter-spacing: 0.08em; opacity: 0.6; }
 .voice-line { margin-top: 8px; font-size: 13px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.voice-log { margin-top: 10px; max-height: 180px; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; scroll-behavior: smooth; }
+.voice-msg { margin: 0 0 6px; font-size: 13px; line-height: 1.45; opacity: 0.85; white-space: normal; overflow-wrap: anywhere; }
+.voice-msg.you { opacity: 0.6; }
+.voice-who { font-family: var(--mono-f); font-size: 11px; letter-spacing: 0.08em; color: #d2ff39; margin-right: 4px; }
+.voice-msg.you .voice-who { color: inherit; }
 .voice-err { color: #ff8a7a; opacity: 1; white-space: normal; }

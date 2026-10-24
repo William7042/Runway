@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { api } from "../api.js";
 
@@ -30,7 +30,12 @@ async function decideTool(id, decision, reason, onDecided) {
 }
 
 function Panel({ onDecided }) {
-  const [line, setLine] = useState("");
+  const [lines, setLines] = useState([]);
+  const logRef = useRef(null);
+  useEffect(() => {
+    const el = logRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [lines]);
   const [err, setErr] = useState("");
 
   const conv = useConversation({
@@ -50,7 +55,7 @@ function Panel({ onDecided }) {
       const text = m?.message ?? m?.text;
       if (!text) return;
       const who = m.source === "user" || m.role === "user" ? "You" : "Desk";
-      setLine(`${who}: ${text}`);
+      setLines((prev) => [...prev.slice(-49), { who, text }]);
     },
     onError: (e) => setErr(typeof e === "string" ? e : "The voice agent is unreachable. Check your connection."),
   });
@@ -89,7 +94,16 @@ function Panel({ onDecided }) {
         </button>
         <span className="voice-status">MIC · {status.toUpperCase()}</span>
       </div>
-      {err ? <div className="voice-line voice-err">{err}</div> : line ? <div className="voice-line">{line}</div> : null}
+      {err ? <div className="voice-line voice-err">{err}</div> : null}
+      {lines.length ? (
+        <div className="voice-log" ref={logRef} aria-live="polite">
+          {lines.map((l, i) => (
+            <p key={i} className={`voice-msg${l.who === "You" ? " you" : ""}`}>
+              <span className="voice-who">{l.who}</span> {l.text}
+            </p>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
