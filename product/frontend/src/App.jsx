@@ -7,6 +7,7 @@ import Activity from "./components/Activity.jsx";
 import Landing from "./components/Landing.jsx";
 import DemoControls from "./components/DemoControls.jsx";
 import TwoAgents from "./components/TwoAgents.jsx";
+import Backdrop from "./components/Backdrop.jsx";
 import { usd, ago, parseFlag } from "./format.js";
 
 // Routes: "#home" (landing, default), "#desk", "#agents", "#activity", "#bounties"
@@ -109,6 +110,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <Backdrop />
       <header className="topbar">
         <button className="brand" onClick={() => go("home")} title="About Runway">
           <span className="logo">▲</span> Runway
