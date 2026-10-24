@@ -4,13 +4,14 @@ import "../styles/desk.css";
 
 const MODE = { endowment: "Endowment", pay_in_kind: "Pay in kind", auto_top_up: "Auto top-up" };
 
-export default function Balances({ balances }) {
+export default function Balances({ balances, layout }) {
   const agents = Object.entries(balances || {});
   return (
-    <section className="panel">
+    <section className={`panel ${layout === "row" ? "wallets-row" : ""}`}>
       <div className="panel-head">
         <h2>Agent wallets</h2>
       </div>
+      <div className="wallets">
       {agents.length === 0 && <div className="muted">No wallets yet.</div>}
       {agents.map(([id, w]) => {
         const total = (w.assets || []).reduce((a, x) => a + Number(x.usd_value || 0), 0);
@@ -56,6 +57,7 @@ export default function Balances({ balances }) {
           </div>
         );
       })}
+      </div>
     </section>
   );
 }

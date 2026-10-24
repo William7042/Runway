@@ -1,52 +1,77 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { api, API } from "./api.js";
-import ProposalCard from "./components/ProposalCard.jsx";
+import ProposalCard, { titleOf } from "./components/ProposalCard.jsx";
 import BlockedCard from "./components/BlockedCard.jsx";
-import DriftGauge from "./components/DriftGauge.jsx";
-import Balances from "./components/Balances.jsx";
-import ReceiptsFeed from "./components/Receipts.jsx";
 import BountyBoard from "./components/BountyBoard.jsx";
+import Activity from "./components/Activity.jsx";
+import Landing from "./components/Landing.jsx";
+import DemoControls from "./components/DemoControls.jsx";
 import TwoAgents from "./components/TwoAgents.jsx";
-import Ledger from "./components/Ledger.jsx";
-import { usd, ago } from "./format.js";
+import { usd, ago, parseFlag } from "./format.js";
 
+// Routes: "#home" (landing, default), "#desk", "#agents", "#activity", "#bounties"
 const TABS = [
-  ["desk", "Approval desk"],
+  ["desk", "Approvals"],
   ["agents", "Two agents"],
-  ["bounties", "Bounty board"],
-  ["ledger", "Ledger"],
+  ["activity", "Activity"],
+  ["bounties", "Bounties"],
 ];
+const ROUTES = ["home", ...TABS.map(([k]) => k)];
 
-function useTab() {
-  const read = () => (TABS.some(([k]) => k === location.hash.slice(1)) ? location.hash.slice(1) : "desk");
-  const [tab, setTab] = useState(read);
+function useRoute() {
+  const read = () => {
+    const h = location.hash.slice(1);
+    if (h === "ledger") return "activity"; // old link
+    return ROUTES.includes(h) ? h : "home";
+  };
+  const [route, setRoute] = useState(read);
   useEffect(() => {
-    const on = () => setTab(read());
+    const on = () => {
+      setRoute(read());
+      window.scrollTo(0, 0);
+    };
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);
-  return [tab, (t) => (location.hash = t)];
+  return [route, (r) => (location.hash = r)];
 }
 
 export default function App() {
-  const [tab, setTab] = useTab();
-  const [state, setState] = useState({ proposals: [], receipts: [], config: null, balances: {}, bounties: [], health: null });
+  const [route, go] = useRoute();
+  const [state, setState] = useState({ proposals: [], config: null, balances: {}, bounties: [], health: null });
   const [online, setOnline] = useState(true);
   const [toast, setToast] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [dismissedBlocked, setDismissedBlocked] = useState(() => new Set());
   const lastBlocked = useRef(null);
+  const awaitingReceipt = useRef(new Set());
 
   const refresh = useCallback(async () => {
     try {
-      const [proposals, receipts, config, balances, bounties, health] = await Promise.all([
-        api.proposals(), api.receipts(), api.config(), api.balances(), api.bounties(), api.health(),
+      const [proposals, config, balances, bounties, health] = await Promise.all([
+        api.proposals(), api.config(), api.balances(), api.bounties(), api.health(),
       ]);
-      setState({ proposals, receipts, config, balances, bounties, health });
+      if (!Array.isArray(proposals)) throw new Error("bad response");
+      setState({ proposals, config, balances, bounties, health });
       setOnline(true);
+
       const newestBlocked = proposals.find((p) => p.blocked);
       if (newestBlocked && lastBlocked.current !== null && newestBlocked.id !== lastBlocked.current) {
-        setToast({ kind: "block", text: "Attack blocked: an injected payment request was stopped by policy." });
+        setToast({ kind: "block", text: "Attack blocked. An injected payment request was stopped by policy." });
       }
       lastBlocked.current = newestBlocked ? newestBlocked.id : "";
+
+      for (const id of awaitingReceipt.current) {
+        const p = proposals.find((x) => x.id === id);
+        if (p?.receipt) {
+          awaitingReceipt.current.delete(id);
+          const ok = p.receipt.status === "executed";
+          setToast({
+            kind: ok ? "ok" : "block",
+            text: ok ? `Paid ${usd(p.amount_usd)} to ${p.seller}. Tx ${String(p.receipt.tx_hash).slice(0, 14)}…` : `Payment to ${p.seller} failed.`,
+          });
+        }
+      }
     } catch {
       setOnline(false);
     }
@@ -64,146 +89,151 @@ export default function App() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const pending = state.proposals.filter((p) => p.status === "pending");
-  const blocked = state.proposals.filter((p) => p.blocked);
-  const recent = state.proposals.filter((p) => p.status !== "pending" && !p.blocked).slice(0, 6);
+  // Queue: oldest first, so requests are handled in the order the agent made them.
+  const pending = state.proposals.filter((p) => p.status === "pending").sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
+  const current = pending.find((p) => p.id === selectedId) || pending[0];
+  const upNext = pending.filter((p) => p !== current);
+  const blocked = state.proposals.filter((p) => p.blocked && !dismissedBlocked.has(p.id)).slice(0, 1);
 
   async function decide(id, decision, reason) {
     await api.decide(id, decision, reason);
-    setToast({ kind: decision === "approve" ? "ok" : "warn", text: decision === "approve" ? "Approved. Sent to the router for signing." : "Rejected. The agent is told why." });
+    if (decision === "approve") awaitingReceipt.current.add(id);
+    setSelectedId(null);
+    setToast(
+      decision === "approve"
+        ? { kind: "ok", text: "Approved. The router is signing and sending it now." }
+        : { kind: "warn", text: "Rejected. The agent is told why." }
+    );
     await refresh();
   }
 
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand">
+        <button className="brand" onClick={() => go("home")} title="About Runway">
           <span className="logo">▲</span> Runway
-          <span className="tagline">An economy for AI agents, with a human on every order</span>
-        </div>
+        </button>
         <nav className="tabs">
           {TABS.map(([k, label]) => (
-            <button key={k} className={`tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>
+            <button key={k} className={`tab ${route === k ? "active" : ""}`} onClick={() => go(k)}>
               {label}
               {k === "desk" && pending.length > 0 && <span className="count">{pending.length}</span>}
             </button>
           ))}
         </nav>
         <div className="status">
-          {state.config?.dry_run && <span className="pill pill-warn">DRY RUN</span>}
-          {state.health?.stub_executor && <span className="pill pill-soft" title="Fake receipts until Person A's router is live">stub router</span>}
-          <span className={`pill ${online ? "pill-ok" : "pill-bad"}`} title={API}>{online ? "queue online" : "queue offline"}</span>
+          {state.config?.dry_run && <span className="pill pill-warn">Dry run</span>}
+          <span className={`live ${online ? "on" : "off"}`} title={API}>
+            <span className="live-dot" />
+            {online ? "Live" : "Offline"}
+          </span>
         </div>
       </header>
 
-      {!online && (
+      {!online && route !== "home" && (
         <div className="offline">
-          Can't reach the approval queue at <span className="mono">{API}</span>. Start it with{" "}
-          <span className="mono">uvicorn app:app --port 8000</span> in <span className="mono">product/queue_service</span>.
+          Can't reach the approval queue at <span className="mono">{API}</span>. Double-click <span className="mono">product/start.bat</span> to start it.
         </div>
       )}
 
-      {tab === "desk" && (
-        <main className="desk">
-          <div className="stack">
-            <div className="page-title">
-              <h1>Approvals</h1>
-              <p>
-                <span className="strong">{pending.length} waiting</span> · No auto-approve. Every order is reviewed one at a time.
-              </p>
+      {route === "home" && <Landing onOpen={() => go("desk")} />}
+
+      {route === "desk" && (
+        <main className="desk-focus">
+          {blocked.map((p) => (
+            <div key={p.id} className="blocked-wrap">
+              <BlockedCard p={p} />
+              <button className="btn btn-ghost small dismiss" onClick={() => setDismissedBlocked(new Set([...dismissedBlocked, p.id]))}>
+                Dismiss
+              </button>
             </div>
-            {pending.length === 0 && <div className="empty">Nothing waiting. The agent will ask before it spends.</div>}
-            {pending.map((p) => (
-              <ProposalCard key={p.id} p={p} config={state.config} onDecide={decide} />
-            ))}
+          ))}
 
-            {blocked.length > 0 && (
-              <>
-                <h2 className="section-title danger">Blocked before reaching you</h2>
-                {blocked.slice(0, 2).map((p) => (
-                  <BlockedCard key={p.id} p={p} />
-                ))}
-              </>
-            )}
-
-            {recent.length > 0 && (
-              <>
-                <h2 className="section-title">Recently decided</h2>
-                <div className="recent">
-                  {recent.map((p) => (
-                    <div key={p.id} className="recent-row">
-                      <div className="grow">
-                        <div className="recent-title">{p.seller}</div>
-                        <div className="recent-sub">
-                          {p.decision?.reason ? `“${p.decision.reason}”` : p.purpose}
-                        </div>
-                      </div>
-                      <span className={`pill pill-${p.status}`}>{p.status}</span>
-                      <span className="recent-amt num">{usd(p.amount_usd)}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+          <div className="page-title">
+            <h1>{pending.length === 0 ? "You're all caught up" : pending.length === 1 ? "1 decision waiting" : `${pending.length} decisions waiting`}</h1>
+            <p>Nothing is paid until you approve it. There is no auto-approve.</p>
           </div>
 
-          <aside className="stack">
-            <DriftGauge
+          {current ? (
+            <ProposalCard
+              key={current.id}
+              p={current}
               config={state.config}
-              onChange={async (v) => {
-                await api.setConfig({ drift_pct: v });
-                refresh();
-              }}
+              onDecide={decide}
+              position={pending.indexOf(current) + 1}
+              total={pending.length}
             />
-            <Balances balances={state.balances} />
-            <ReceiptsFeed receipts={state.receipts} />
-          </aside>
+          ) : (
+            <div className="empty big-empty">
+              <div className="empty-mark">✓</div>
+              <div className="strong">No orders need your approval.</div>
+              <div>When the agent wants to spend, it will show up here first.</div>
+              <button className="btn small" onClick={() => go("activity")}>
+                See activity
+              </button>
+            </div>
+          )}
+
+          {upNext.length > 0 && (
+            <section className="upnext">
+              <h2 className="section-title">Up next</h2>
+              <div className="upnext-list">
+                {upNext.map((p) => {
+                  const hasWarn = (p.flags || []).length > 0;
+                  return (
+                    <button key={p.id} className="upnext-row" onClick={() => setSelectedId(p.id)}>
+                      <div className="grow">
+                        <div className="upnext-title">{titleOf(p)}</div>
+                        <div className="upnext-sub">
+                          to {p.seller} · {ago(p.created_at)}
+                          {hasWarn && <span className="warn-dot"> · {parseFlag(p.flags[0]).label}</span>}
+                        </div>
+                      </div>
+                      <span className="upnext-amt num">{usd(p.amount_usd)}</span>
+                      <span className="chev" aria-hidden="true">›</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </main>
       )}
 
-      {tab === "agents" && <TwoAgents />}
+      {route === "activity" && (
+        <main className="page">
+          <div className="page-title">
+            <h1>Activity</h1>
+            <p>Wallets, totals, and every decision with quote versus fill.</p>
+          </div>
+          <Activity proposals={state.proposals} balances={state.balances} />
+        </main>
+      )}
 
-      {tab === "bounties" && (
+      {route === "agents" && <TwoAgents />}
+
+      {route === "bounties" && (
         <main className="page">
           <div className="page-title">
             <h1>Bounties</h1>
-            <p>Hire humans and agents. Every payout is approved like any other order.</p>
+            <p>Hire people and agents. Every payout is approved like any other order.</p>
           </div>
           <BountyBoard bounties={state.bounties} proposals={state.proposals} api={api} refresh={refresh} />
         </main>
       )}
 
-      {tab === "ledger" && (
-        <main className="page">
-          <div className="page-title">
-            <h1>Ledger</h1>
-            <p>Every proposal, decision and fill, with quote versus fill.</p>
-          </div>
-          <Ledger proposals={state.proposals} balances={state.balances} />
-        </main>
+      {route !== "home" && (
+        <DemoControls
+          config={state.config}
+          health={state.health}
+          api={api}
+          refresh={refresh}
+          onReset={() => {
+            lastBlocked.current = null;
+            setDismissedBlocked(new Set());
+          }}
+        />
       )}
-
-      <footer className="footer">
-        <span className="muted small">Technical demo, not financial advice. Simulated sellers are labelled.</span>
-        <details className="demo-controls">
-          <summary>Demo controls</summary>
-          <button className="btn btn-ghost small" onClick={async () => { await api.attack(); refresh(); }}>
-            Simulate injection attack
-          </button>
-          <button
-            className="btn btn-ghost small"
-            onClick={async () => {
-              if (confirm("Reset all demo data to the seeded state?")) {
-                await api.reset();
-                lastBlocked.current = null;
-                refresh();
-              }
-            }}
-          >
-            Reset demo data
-          </button>
-        </details>
-      </footer>
 
       {toast && <div className={`toast toast-${toast.kind}`}>{toast.text}</div>}
     </div>

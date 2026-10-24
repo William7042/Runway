@@ -193,3 +193,24 @@ input:focus, textarea:focus, select:focus, button:focus-visible, summary:focus-v
 .toast-warn { background: var(--text); color: #FDFDFF; }
 .toast-block { background: var(--bad); color: #fff; }
 @keyframes pop { from { transform: translate(-50%, 6px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+/* ---------- v3 additions: brand button, live status, big buttons, focused desk ---------- */
+button.brand { border: 0; background: none; color: inherit; font: inherit; font-weight: 700; font-size: 18px; cursor: pointer; padding: 0; }
+button.brand:hover .logo { transform: translateY(-1px); }
+.logo { transition: transform 0.15s; display: inline-block; }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-label); font-weight: 600; color: var(--text-2); }
+.live-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--mint); box-shadow: 0 0 0 3px var(--good-bg); }
+.live.off { color: var(--bad); }
+.live.off .live-dot { background: var(--bad); box-shadow: 0 0 0 3px var(--bad-bg); }
+.btn-lg { padding: 14px 24px; font-size: 15px; border-radius: 12px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+.btn-mint { background: var(--mint); border-color: var(--mint); color: var(--text); }
+.btn-mint:hover:not(:disabled) { background: var(--mint); filter: brightness(1.05); }
+a.btn { text-decoration: none; }
+
+.desk-focus { width: 100%; max-width: 860px; margin: 0 auto; padding: 48px 24px 120px; display: flex; flex-direction: column; gap: 20px; }
+.desk-focus .page-title { margin-bottom: 4px; }
+.big-empty { display: flex; flex-direction: column; gap: 8px; align-items: center; padding: 64px 24px; }
+.empty-mark { width: 44px; height: 44px; border-radius: 99px; background: var(--good-bg); color: var(--good); display: grid; place-items: center; font-weight: 700; font-size: 20px; margin-bottom: 4px; }
+.big-empty .strong { color: var(--text); font-size: 16px; }
+.big-empty .btn { margin-top: 8px; }
+@media (max-width: 1000px) { .desk-focus { padding: 28px 16px 120px; } }
