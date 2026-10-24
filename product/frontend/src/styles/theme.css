@@ -148,3 +148,18 @@ mark.injected, .injected { background: var(--bad); color: #000; padding: 0 3px; 
 .step-key .step-num { background: #000; color: var(--lime); }
 .hero h1 { max-width: none; }
 .hero-accent { white-space: nowrap; }
+
+/* Voice desk */
+.voice-desk { border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px 14px; margin: 0 0 16px; background: rgba(255,255,255,0.02); }
+.voice-desk-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.voice-pill { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 7px 14px; border: 1px solid rgba(210,255,57,0.5); background: transparent; color: #d2ff39; font: inherit; font-size: 13px; cursor: pointer; }
+.voice-pill:hover { background: rgba(210,255,57,0.08); }
+.voice-pill.on { background: #d2ff39; color: #0b0b0b; }
+.voice-pill:disabled { opacity: 0.6; cursor: wait; }
+.voice-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+.voice-dot.live { opacity: 1; }
+.voice-dot.pulse { animation: voice-pulse 1.2s ease-in-out infinite; }
+@keyframes voice-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(210,255,57,0.55); } 50% { box-shadow: 0 0 0 6px rgba(210,255,57,0); } }
+.voice-status { font-family: var(--mono-f); font-size: 11px; letter-spacing: 0.08em; opacity: 0.6; }
+.voice-line { margin-top: 8px; font-size: 13px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.voice-err { color: #ff8a7a; opacity: 1; white-space: normal; }

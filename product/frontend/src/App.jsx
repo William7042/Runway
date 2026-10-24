@@ -12,6 +12,7 @@ import Specialists from "./components/Specialists.jsx";
 import Balances from "./components/Balances.jsx";
 import DriftGauge from "./components/DriftGauge.jsx";
 import ReceiptsFeed from "./components/Receipts.jsx";
+import VoiceDesk from "./components/VoiceDesk.jsx";
 import { usd, ago, parseFlag } from "./format.js";
 
 // Routes: "#home" (landing, default), "#desk", "#specialists", "#bounties", "#activity", "#agents" (live demo)
@@ -169,6 +170,8 @@ export default function App() {
                 </button>
               </div>
             ))}
+
+            <VoiceDesk onDecided={refresh} />
 
             <div className="page-title">
               <h1>{pending.length === 0 ? "You're all caught up" : pending.length === 1 ? "1 decision waiting" : `${pending.length} decisions waiting`}</h1>
