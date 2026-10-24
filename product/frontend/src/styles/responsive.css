@@ -13,7 +13,7 @@ body { overflow-x: clip; }
 
 /* One centred column; ultra-wide screens don't stretch. */
 .desk, .page, .landing { max-width: 1440px; padding-left: var(--gutter); padding-right: var(--gutter); }
-.topbar { padding-left: max(var(--gutter), calc((100vw - 1440px) / 2 + var(--gutter))); padding-right: max(var(--gutter), calc((100vw - 1440px) / 2 + var(--gutter))); }
+.topbar { padding-left: var(--gutter); padding-right: var(--gutter); }
 
 /* Headlines: never leave their box, never sit on the text below. */
 .page-title h1, .hero h1, .l-title { line-height: 1; overflow-wrap: break-word; padding-left: 0.04em; max-width: 100%; }
@@ -64,3 +64,22 @@ img, svg, canvas, video { max-width: 100%; }
 .hero { max-width: none; }
 @media (max-width: 1000px) { .desk-side { position: static; } }
 @media (max-width: 760px) { .status { margin-left: auto; flex-wrap: wrap; justify-content: flex-end; min-width: 0; gap: 6px; } .topbar > * { min-width: 0; } }
+
+/* Header row: brand left, nav in the middle, wallet group pinned right. */
+.topbar { display: flex; flex-wrap: nowrap; align-items: center; gap: clamp(12px, 2vw, 32px); }
+.topbar .brand { flex: none; }
+.topbar .tabs { flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.topbar .tabs::-webkit-scrollbar { display: none; }
+.topbar .tab { flex: none; white-space: nowrap; }
+.topbar .status { margin-left: auto; flex: none; flex-wrap: nowrap; justify-content: flex-end; white-space: nowrap; }
+@media (max-width: 1100px) { .topbar .status .pill-soft { display: none; } }
+@media (max-width: 960px) { .topbar .tc-label { display: none; } }
+@media (max-width: 760px) {
+  .topbar { flex-wrap: wrap; row-gap: 0; }
+  .topbar .tabs { order: 3; flex: 1 0 100%; }
+}
+@media (max-width: 480px) {
+  .topbar .live { font-size: 0; gap: 0; }
+  .topbar .status .pill-warn { padding: 1px 5px; }
+  .treasury-chip { padding: 4px 10px; }
+}
