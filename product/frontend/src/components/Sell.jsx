@@ -90,6 +90,7 @@ export default function Sell({ api, refreshKey }) {
     return () => { alive = false; };
   }, [api, Object.keys(tokens).join(",")]);
   const [jobs, setJobs] = useState({});
+  const [jobTab, setJobTab] = useState("active");
   const [err, setErr] = useState("");
   const [form, setForm] = useState({ name: "", capability: "", price_usd: "0.10", payout_user: "test2", accepts: "PYUSD", simulated: false });
   const [justRegistered, setJustRegistered] = useState(null);
@@ -207,8 +208,17 @@ export default function Sell({ api, refreshKey }) {
               Your agent isn't selling anything yet. List a service on the right and other agents can hire it.
             </div>
           )}
+          <div className="subtabs" role="tablist" aria-label="Seller orders">
+            {[['active', 'Active'], ['completed', 'Completed']].map(([id, label]) => (
+              <button key={id} role="tab" aria-selected={jobTab === id}
+                className={`subtab ${jobTab === id ? 'active' : ''}`} onClick={() => setJobTab(id)}>
+                {label} · {Object.values(jobs).flat().filter(j => j && (id === 'completed' ? j.status === 'complete' : j.status !== 'complete')).length}
+              </button>
+            ))}
+          </div>
           {mine.map((s) => {
             const list = jobs[s.id];
+            const visibleJobs = list?.filter(j => jobTab === 'completed' ? j.status === 'complete' : j.status !== 'complete');
             return (
               <article key={s.id} className="card listing">
                 <div className="listing-top">
@@ -237,12 +247,12 @@ export default function Sell({ api, refreshKey }) {
                   {s.active === false && <span className="pill pill-soft">paused</span>}
                 </div>
                 <div className="jobs">
-                  <div className="label">Paid orders</div>
+                  <div className="label">{jobTab === 'completed' ? 'Completed orders' : 'Active orders'}</div>
                   {list === null && <div className="muted small">Couldn't load orders. Is the seller token right?</div>}
-                  {list && list.length === 0 && (
-                    <div className="muted small">No paid orders yet. Orders show up here after the buyer's payment is approved and confirmed.</div>
+                  {visibleJobs?.length === 0 && (
+                    <div className="muted small">{jobTab === 'completed' ? 'No completed orders yet. Delivered work will appear here.' : 'No active orders. New work appears after payment confirms.'}</div>
                   )}
-                  {list && list.map((j) => <JobRow key={j.id} job={j} onDeliver={deliver} />)}
+                  {visibleJobs?.map((j) => <JobRow key={j.id} job={j} onDeliver={deliver} />)}
                 </div>
               </article>
             );

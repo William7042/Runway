@@ -386,7 +386,7 @@ def _approved_specialist_jobs():
         approved = {p['id'] for p in s['proposals']
                     if p['status'] == 'approved' and not p.get('execution_error')}
         return [copy.deepcopy(j) for j in s.get('specialist_jobs', [])
-                if not j.get('simulated') and j.get('proposal_id') in approved]
+                if not j.get('simulated') and not j.get('archived_at') and j.get('proposal_id') in approved]
 
 
 def _specialist_execution_issue(ident, message):

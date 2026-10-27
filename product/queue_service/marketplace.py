@@ -227,7 +227,7 @@ def install(app, Store, find):
             owner(listing(s,ident),body.owner_token)
             # Unpaid requests never start paid work. They remain visible to buyers.
             return [job_view(s,j) for j in s.get('specialist_jobs',[])
-                    if j['specialist_id']==ident and paid(s,j)]
+                    if j['specialist_id']==ident and not j.get('archived_at') and paid(s,j)]
 
     @router.post('/specialist-jobs/{ident}/result')
     def submit_result(ident: str,body: Result):
