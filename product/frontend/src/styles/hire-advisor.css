@@ -1,0 +1,34 @@
+.hire-advisor { padding: 24px; margin: 20px 0; }
+.hire-control { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
+.hire-control p { margin-top: 8px; }
+.hire-toggle { display: flex; align-items: center; gap: 10px; white-space: nowrap; cursor: pointer; position: relative; }
+.hire-toggle input { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.hire-toggle-track { width: 44px; height: 26px; background: var(--border-strong); border-radius: 20px; padding: 3px; }
+.hire-toggle-track::after { content: ''; display: block; width: 20px; height: 20px; border-radius: 50%; background: var(--text); transition: transform .15s; }
+.hire-toggle input:checked + .hire-toggle-track { background: var(--mint); }
+.hire-toggle input:checked + .hire-toggle-track::after { transform: translateX(18px); background: #111; }
+.hire-toggle input:focus-visible + .hire-toggle-track { outline: 2px solid var(--text); outline-offset: 3px; }
+.hire-advisor textarea { display: block; width: 100%; margin: 10px 0 16px; padding: 12px; background: var(--surface-2); color: var(--text); font: inherit; border: 1px solid var(--border-strong); border-radius: 8px; resize: vertical; }
+.hire-advisor > .small { margin-top: 12px; }
+.hire-summary { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 20px; }
+.hire-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 16px; margin-top: 20px; }
+.hire-choice { padding: 20px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface-2); }
+.hire-choice.selected { border-color: var(--mint); }
+.hire-choice h3, .hire-choice p { margin: 12px 0; }
+.hire-choice dt { font-weight: 600; margin-top: 16px; }
+.hire-choice dd { margin: 6px 0 18px; color: var(--text-2); line-height: 1.6; }
+.hire-selection { border-top: 1px solid var(--border); margin-top: 16px; }
+@media(max-width: 640px) { .hire-control { align-items: flex-start; flex-direction: column; } .hire-advisor { padding: 18px; } }
+
+.hire-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.hire-toolbar .subtabs { margin: 0; }
+.hire-toolbar-actions { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.hire-toolbar .hire-toggle { font-size: 12px; color: var(--text-2); }
+.hire-toolbar .hire-toggle strong { font-weight: 500; color: var(--text); }
+.hire-advisor-link { border: 0; background: none; color: var(--text-2); font: inherit; font-size: 12px; cursor: pointer; padding: 8px 0; }
+.hire-advisor-link:hover { color: var(--mint); }
+.hire-advisor-dialog { width: min(1000px, calc(100vw - 32px)); max-height: 85vh; padding: 20px; margin: auto; border: 1px solid var(--border-strong); border-radius: 16px; color: var(--text); background: var(--surface); }
+.hire-advisor-dialog::backdrop { background: rgba(0,0,0,.7); }
+.hire-advisor-dialog .hire-advisor { margin: 0; padding: 16px 0 0; border: 0; box-shadow: none; }
+.hire-advisor-dialog h2 { margin-bottom: 20px; }
+.hire-dialog-close { display: block; margin-left: auto; }

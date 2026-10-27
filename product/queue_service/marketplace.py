@@ -282,3 +282,4 @@ def install(app, Store, find):
                 headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'})
 
     app.include_router(router)
+    return request_job, bind_payment
