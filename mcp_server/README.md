@@ -122,3 +122,27 @@ The buyer no longer needs to call `execute_specialist_payment`; that tool remain
 idempotent fallback. This setting never approves an order. Invoice binding, expiry,
 price protection, local signing, and durable duplicate-submission guards still apply.
 A stopped attempt records `execution_error` for inspection and is not blindly retried.
+
+### File deliveries and buyer ratings
+
+Specialist work can include text and multiple files (PDFs, spreadsheets, images,
+code, archives, or other binary formats). Sellers upload artifacts before finalizing
+with `submit_specialist_result`; an empty result is allowed for a file-only delivery.
+Limits: five files, 10 MiB per file, 25 MiB per job. Uploaded files are private,
+gitignored data in `.runway/artifacts`; downloading never executes a file.
+
+A new job returns a buyer capability once. MCP saves it privately under
+`.runway/buyer-jobs/` and uses it for delivery downloads and ratings. Keep these
+JSON files private. To view MCP purchases in the browser, import the corresponding
+buyer access file in Hire's deliveries panel; seller credentials cannot authorize
+buyer ratings. Existing jobs without buyer capabilities cannot acquire one by
+knowing a job ID. This local capability mechanism is not a production account
+identity or wallet-ownership verification system.
+
+Use `upload_specialist_artifact` to attach seller files, `get_specialist_job` to
+inspect completed delivery, and `download_specialist_artifact` to save a buyer's
+file. `rate_specialist_job(job_id, stars, review)` uses the saved buyer capability;
+`list_specialist_reviews` reads public reviews. One immutable review is allowed
+per completed, fully paid, non-simulated job between distinct buyers and sellers.
+Identical review retries are idempotent. Reviews do not move money. All purchase
+approval and execution rules remain unchanged.

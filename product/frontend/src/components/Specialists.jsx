@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { usd, amt, buyerWallet } from "../format.js";
 import "../styles/specialists.css";
+import SellerReviews from "./SellerReviews.jsx";
+import BuyerDeliveries from "./BuyerDeliveries.jsx";
 
 const treasuryOf = (balances) => {
   const buyer = buyerWallet(balances);
@@ -109,6 +111,8 @@ export default function Specialists({ api, balances, refreshKey, onOpenApprovals
               </div>
             </div>
 
+            <SellerReviews specialist={s} api={api} refreshKey={refreshKey} />
+
             {s.pending > 0 && (
               <button className="spec-pending" onClick={onOpenApprovals}>
                 {s.pending} payment{s.pending > 1 ? "s" : ""} to this specialist waiting for you →
@@ -117,7 +121,7 @@ export default function Specialists({ api, balances, refreshKey, onOpenApprovals
           </article>
         ))}
       </div>
-      <p className="small muted">Reputation comes from the payment ledger (jobs paid, refunds issued), not from the seller's own claims.</p>
+      <p className="small muted">Ratings come from completed real purchases. Payment and delivery statistics are shown separately.</p>
     </div>
   );
 }

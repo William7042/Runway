@@ -35,3 +35,25 @@ export const api = {
   attack: () => req("POST", "/demo/attack"),
   reset: () => req("POST", "/demo/reset"),
 };
+
+// Artifact credentials stay in request bodies, never in download URLs.
+api.jobDelivery = (id, buyer_token) => req("POST", `/specialist-jobs/${id}/delivery`, { buyer_token });
+api.rateSpecialistJob = (id, buyer_token, stars, review) => req("POST", `/specialist-jobs/${id}/rating`, { buyer_token, stars, review });
+api.specialistReviews = (id) => req("GET", `/specialists/${id}/reviews`);
+api.uploadArtifact = async (id, owner_token, file, description = "") => {
+  if (!file.size || file.size > 10 * 1024 * 1024) throw new Error("Files must contain 1 byte to 10 MiB");
+  const content_base64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1]);
+    reader.onerror = () => reject(new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
+  return req("POST", `/specialist-jobs/${id}/artifacts`, { owner_token, filename: file.name, mime_type: file.type || "application/octet-stream", description, content_base64 });
+};
+api.downloadArtifact = async (id, artifactId, buyer_token) => {
+  const response = await fetch(API + `/specialist-jobs/${id}/artifacts/${artifactId}/download`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ buyer_token }),
+  });
+  if (!response.ok) throw new Error("Download unavailable: check buyer access and delivery status");
+  return response.blob();
+};

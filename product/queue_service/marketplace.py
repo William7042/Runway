@@ -9,6 +9,8 @@ import uuid
 from decimal import Decimal
 from urllib.parse import urlsplit
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
+from artifacts import ArtifactUpload, ArtifactAccess, upload, file_path
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 TOKENS={'USDC','PYUSD','SOL','BTC','ETH'}
@@ -43,6 +45,11 @@ def save_demo_credentials(profile, token):
 
 def _hash(token):
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def authorize_buyer(job, buyer_token):
+    if not buyer_token or not job.get('buyer_token_hash') or not secrets.compare_digest(job['buyer_token_hash'],_hash(buyer_token)):
+        raise HTTPException(403,'Buyer access token required')
 
 
 def _public(profile):
@@ -96,7 +103,7 @@ class Payment(BaseModel):
 
 class Result(BaseModel):
     owner_token: str
-    result: str = Field(min_length=1,max_length=50000)
+    result: str = Field(default="",max_length=50000)
 
 
 def install(app, Store, find):
@@ -120,7 +127,8 @@ def install(app, Store, find):
                     and not quality.get('needs_reconciliation')
                     and Decimal(str(quality.get('shortfall',0)))==0)
     def job_view(s,job):
-        result=dict(job)
+        result={k:v for k,v in job.items() if k not in {"buyer_token_hash","artifacts"}}
+        result["artifact_count"]=len(job.get("artifacts",[]))
         if job['status']!='complete':
             result['status']='paid' if paid(s,job) else 'awaiting_payment'
             if job.get('proposal_id'):
@@ -158,7 +166,8 @@ def install(app, Store, find):
 
     @router.get('/specialists/{ident}')
     def get_listing(ident: str):
-        with Store() as s: return _public(listing(s,ident))
+        from ratings import rating_summary
+        with Store() as s: return {**_public(listing(s,ident)),**rating_summary(s,ident)}
 
     @router.patch('/specialists/{ident}')
     def update(ident: str,body: Update):
@@ -177,12 +186,14 @@ def install(app, Store, find):
                     if old['specialist_id']!=body.specialist_id or old['request']!=body.request:
                         raise HTTPException(409,'Idempotency key belongs to another request')
                     return job_view(s,old)
+            buyer_token=secrets.token_urlsafe(32)
             job={**body.model_dump(),'id':'job-'+uuid.uuid4().hex[:16],
                 'seller':profile['payout_user'],'price_usd':profile['price_usd'],
                 'accepts':list(profile['accepts']),'simulated':profile['simulated'],
-                'status':'awaiting_payment','proposal_id':None,'result':None,'created_at':time.time()}
+                'status':'awaiting_payment','proposal_id':None,'result':None,'created_at':time.time(),
+                'buyer_token_hash':_hash(buyer_token),'artifacts':[]}
             s.setdefault('specialist_jobs',[]).append(job)
-            return job
+            return {**job_view(s,job),'buyer_token':buyer_token}
 
     @router.get('/specialist-jobs/{ident}')
     def get_job(ident: str):
@@ -224,10 +235,50 @@ def install(app, Store, find):
             job=find(s.get('specialist_jobs',[]),ident,'job')
             owner(listing(s,job['specialist_id']),body.owner_token)
             if not paid(s,job): raise HTTPException(409,'Confirmed full payment is required before delivery')
+            if not body.result.strip() and not job.get('artifacts'):
+                raise HTTPException(422,'Deliver text or at least one file')
             if job['status']=='complete':
                 if job['result']!=body.result: raise HTTPException(409,'Result already submitted')
                 return job_view(s,job)
             job.update(status='complete',result=body.result,completed_at=time.time())
             return job_view(s,job)
+
+    def delivery_access(s, job, body):
+        if body.owner_token:
+            owner(listing(s,job['specialist_id']),body.owner_token)
+        else:
+            authorize_buyer(job,body.buyer_token)
+        if not paid(s,job):raise HTTPException(409,'Confirmed payment is required')
+
+    @router.post('/specialist-jobs/{ident}/artifacts',status_code=201)
+    def upload_artifact(ident: str,body: ArtifactUpload):
+        with Store() as s:
+            job=find(s.get('specialist_jobs',[]),ident,'job')
+            owner(listing(s,job['specialist_id']),body.owner_token)
+            if not paid(s,job):raise HTTPException(409,'Confirmed payment is required before file upload')
+            if job['status']=='complete':raise HTTPException(409,'Delivery is already complete')
+            return upload(job,body)
+
+    @router.post('/specialist-jobs/{ident}/delivery')
+    def delivery(ident: str,body: ArtifactAccess):
+        with Store() as s:
+            job=find(s.get('specialist_jobs',[]),ident,'job')
+            delivery_access(s,job,body)
+            if not body.owner_token and job['status']!='complete':
+                raise HTTPException(409,'Seller has not completed delivery')
+            rating=next((r for r in s.get('specialist_ratings',[]) if r['job_id']==ident),None)
+            return {**job_view(s,job),'artifacts':job.get('artifacts',[]),'rating':rating}
+
+    @router.post('/specialist-jobs/{ident}/artifacts/{artifact_id}/download')
+    def download_artifact(ident: str,artifact_id: str,body: ArtifactAccess):
+        with Store() as s:
+            job=find(s.get('specialist_jobs',[]),ident,'job')
+            delivery_access(s,job,body)
+            if not body.owner_token and job['status']!='complete':
+                raise HTTPException(409,'Seller has not completed delivery')
+            artifact=find(job.get('artifacts',[]),artifact_id,'artifact')
+            path=file_path(artifact)
+            return FileResponse(path,filename=artifact['filename'],media_type='application/octet-stream',
+                headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'})
 
     app.include_router(router)

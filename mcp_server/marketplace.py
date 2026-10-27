@@ -1,5 +1,6 @@
 """Buyer/seller tools. Human financial decisions stay in the dashboard."""
 from . import queue_http as q
+from . import delivery_credentials as credentials
 
 
 def install(mcp):
@@ -41,15 +42,19 @@ def install(mcp):
         from runway_money.state import State
         job=q._req('POST','/specialist-jobs',json={'specialist_id':specialist_id,
             'buyer':buyer,'request':request,'idempotency_key':idempotency_key})
+        credentials.save(job)
+        credential_path=str(credentials.path(job['id']))
+        def buyer_view(value):
+            return {**value,**({'buyer_credentials_file':credential_path} if credentials.token(job['id']) else {})}
         with State('.runway/job-payment-locks').lock(job['id']):
             job=q._req('GET',f'/specialist-jobs/{job["id"]}')
-            if job.get('proposal_id'): return job
+            if job.get('proposal_id'): return buyer_view(job)
             source='user:specialist-job:'+job['id']
             # Recover an enqueue that succeeded before a transport interruption.
             for p in q.list_proposals():
                 src=p.get('source');src=src.get('text') if isinstance(src,dict) else src
                 if src==source:
-                    return q._req('POST',f'/specialist-jobs/{job["id"]}/payment',json={'proposal_id':p['id']})
+                    return buyer_view(q._req('POST',f'/specialist-jobs/{job["id"]}/payment',json={'proposal_id':p['id']}))
             live=os.getenv('RUNWAY_MODE','stub')=='live'
             if not live and not job['simulated']:
                 return {**job,'payment_error':'Live seller requires RUNWAY_MODE=live; no simulated payment was created.'}
@@ -68,12 +73,17 @@ def install(mcp):
                 return {**job,'payment_error':'The simulated payment adapter requires USDC acceptance.'}
             p=router.propose_payment(buyer,job['seller'],job['price_usd'],
                 f'Purchase specialist job {job["id"]}: {request[:500]}',source)
-            return q._req('POST',f'/specialist-jobs/{job["id"]}/payment',json={'proposal_id':p['id']})
+            return buyer_view(q._req('POST',f'/specialist-jobs/{job["id"]}/payment',json={'proposal_id':p['id']}))
 
     @mcp.tool()
     def get_specialist_job(job_id: str) -> dict:
         """Buyer polls payment status or retrieves the completed specialist result."""
-        return q._req('GET',f'/specialist-jobs/{job_id}')
+        job=q._req('GET',f'/specialist-jobs/{job_id}')
+        token=credentials.token(job_id)
+        if job['status']=='complete' and token:
+            return {**q._req('POST',f'/specialist-jobs/{job_id}/delivery',json={'buyer_token':token}),
+                    'buyer_credentials_file':str(credentials.path(job_id))}
+        return {**job,**({'buyer_credentials_file':str(credentials.path(job_id))} if token else {})}
 
     @mcp.tool()
     def execute_specialist_payment(job_id: str) -> dict:
@@ -98,6 +108,46 @@ def install(mcp):
     def submit_specialist_result(job_id: str, owner_token: str, result: str) -> dict:
         """Seller delivers work for its confirmed paid job. Same-result retries are idempotent."""
         return q._req('POST',f'/specialist-jobs/{job_id}/result',json={'owner_token':owner_token,'result':result})
+
+    @mcp.tool()
+    def upload_specialist_artifact(job_id: str, owner_token: str, file_path: str,
+                                   description: str = '') -> dict:
+        """Seller attaches a local PDF, spreadsheet, image, code file, archive or other file.
+
+        Up to five files, 10 MiB each and 25 MiB total. Upload BEFORE submitting
+        the final text result; file-only delivery can submit an empty text result.
+        No endpoint is executed. Requires confirmed payment and seller ownership.
+        """
+        import base64
+        import mimetypes
+        from pathlib import Path
+        path=Path(file_path).expanduser()
+        if not path.is_file() or path.stat().st_size>10*1024*1024:
+            raise ValueError('File must exist and be at most 10 MiB')
+        return q._req('POST',f'/specialist-jobs/{job_id}/artifacts',json={
+            'owner_token':owner_token,'filename':path.name,
+            'mime_type':mimetypes.guess_type(path.name)[0] or 'application/octet-stream',
+            'description':description,'content_base64':base64.b64encode(path.read_bytes()).decode()})
+
+    @mcp.tool()
+    def download_specialist_artifact(job_id: str, artifact_id: str, destination: str,
+                                     buyer_token: str = '') -> dict:
+        """Buyer downloads a completed file using its saved private job capability.
+
+        destination must be a new local file; existing files are never overwritten.
+        Files are downloaded as data and never executed. Buyer tokens never appear in URLs.
+        """
+        import httpx
+        from pathlib import Path
+        token=buyer_token or credentials.token(job_id)
+        if not token:raise ValueError('This buyer needs its private job access token')
+        path=Path(destination).expanduser()
+        with httpx.Client(timeout=60) as client:
+            response=client.post(q.BASE+f'/specialist-jobs/{job_id}/artifacts/{artifact_id}/download',json={'buyer_token':token})
+            response.raise_for_status()
+        fd=__import__('os').open(path,__import__('os').O_WRONLY|__import__('os').O_CREAT|__import__('os').O_EXCL,0o600)
+        with __import__('os').fdopen(fd,'wb') as stream:stream.write(response.content)
+        return {'job_id':job_id,'artifact_id':artifact_id,'path':str(path),'size_bytes':len(response.content)}
 
     @mcp.tool()
     def execute_bounty_payment(bounty_id: str) -> dict:

@@ -24,6 +24,8 @@ const JOB_LABEL = { awaiting_payment: "Waiting for buyer's payment", paid: "Paid
 function JobRow({ job, onDeliver }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState([]);
+  const [error, setError] = useState("");
   return (
     <div className="job">
       <div className="job-top">
@@ -42,14 +44,21 @@ function JobRow({ job, onDeliver }) {
       </div>
       {job.status === "paid" && (
         <div className="inline-form col">
-          <textarea placeholder="Paste the result your agent produced" value={text} onChange={(e) => setText(e.target.value)} />
+          <textarea placeholder="Delivery notes or the result your agent produced" value={text} onChange={(e) => setText(e.target.value)} />
+          <label className="small">Attach deliverables (up to 5 files; 10 MiB each)
+            <input type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files || []))} />
+          </label>
+          {files.map((file) => <div className="small" key={file.name}>{file.name} · {Math.ceil(file.size / 1024)} KB</div>)}
+          {error && <div className="error" role="alert">{error}</div>}
           <button
             className="btn btn-primary"
-            disabled={busy || !text.trim()}
+            disabled={busy || (!text.trim() && !files.length) || files.length > 5}
             onClick={async () => {
               setBusy(true);
               try {
-                await onDeliver(job, text.trim());
+                await onDeliver(job, text.trim(), files);
+              } catch (e) {
+                setError(e.message);
               } finally {
                 setBusy(false);
               }
@@ -60,6 +69,7 @@ function JobRow({ job, onDeliver }) {
         </div>
       )}
       {job.status === "complete" && job.result && <div className="job-result">“{job.result}”</div>}
+      {job.artifact_count > 0 && <div className="small muted">{job.artifact_count} file(s) attached to this delivery</div>}
     </div>
   );
 }
@@ -150,12 +160,14 @@ export default function Sell({ api, refreshKey }) {
     }
   }
 
-  async function deliver(job, result) {
+  async function deliver(job, result, files = []) {
     try {
+      for (const file of files) await api.uploadArtifact(job.id, tokens[job.specialist_id], file);
       await api.submitResult(job.id, tokens[job.specialist_id], result);
       setJobs({ ...jobs, [job.specialist_id]: await api.sellerJobs(job.specialist_id, tokens[job.specialist_id]) });
     } catch (e) {
       setErr(e.message);
+      throw e;
     }
   }
 

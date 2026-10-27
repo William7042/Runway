@@ -39,6 +39,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 import seed
+from ratings import rating_summary
 
 DATA_FILE = Path(os.getenv("QUEUE_DATA_FILE", Path(__file__).parent / "data" / "store.json"))
 STUB_EXECUTOR = os.getenv("STUB_EXECUTOR", "1") != "0"   # set STUB_EXECUTOR=0 once Person A's router is live
@@ -644,6 +645,7 @@ def specialists():
             wallet = s["balances"].get(sp.get("payout_user", sp["id"]), {"assets": []})
             out.append({
                 **{k: v for k, v in sp.items() if k not in {"base", "owner_token_hash"}},
+                **rating_summary(s, sp['id']),
                 "jobs": jobs,
                 "jobs_completed": len([j for j in s.get("specialist_jobs", []) if j["specialist_id"] == sp["id"] and j["status"] == "complete"]),
                 "earned_usd": round(sp["base"]["earned_usd"] + sum(float(p.get("amount_usd") or 0) for p in done), 4),
@@ -675,3 +677,6 @@ def demo_reset():
 
 from marketplace import install as install_marketplace
 install_marketplace(app, Store, _find)
+
+from ratings import install as install_ratings
+install_ratings(app, Store, _find)

@@ -460,6 +460,8 @@ def get_reputation(seller_id: str) -> str:
             return _j({'error': True, 'detail': 'Unknown marketplace specialist'})
         return _j({'seller_id': seller_id, 'jobs_paid': profile['jobs'],
                    'jobs_completed': profile.get('jobs_completed', 0),
+                   'rating_average': profile.get('rating_average'),
+                   'rating_count': profile.get('rating_count', 0),
                    'payouts_usd': profile['earned_usd'], 'refunds': profile['refunds'],
                    'simulated': profile['simulated'], 'source': 'marketplace_payment_and_delivery_ledger'})
     except Exception as e:
@@ -688,6 +690,9 @@ def review_pending() -> str:
 from mcp_server.marketplace import install as install_marketplace_tools
 install_marketplace_tools(mcp)
 
+
+from mcp_server.ratings import install as install_rating_tools
+install_rating_tools(mcp)
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
