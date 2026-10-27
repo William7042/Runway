@@ -57,3 +57,6 @@ api.downloadArtifact = async (id, artifactId, buyer_token) => {
   if (!response.ok) throw new Error("Download unavailable: check buyer access and delivery status");
   return response.blob();
 };
+
+api.hireRecommendations = (question) => req('POST', '/hire/recommendations', { question });
+api.prepareHirePayment = (body) => req('POST', '/hire/prepare-payment', body);

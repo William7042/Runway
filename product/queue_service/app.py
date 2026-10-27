@@ -676,7 +676,12 @@ def demo_reset():
 
 
 from marketplace import install as install_marketplace
-install_marketplace(app, Store, _find)
+marketplace_handlers = install_marketplace(app, Store, _find)
 
 from ratings import install as install_ratings
 install_ratings(app, Store, _find)
+
+from hire_advisor import install as install_hire_advisor
+install_hire_advisor(app, specialists)
+from hire_advisor import install_purchase as install_hire_purchase
+install_hire_purchase(app, specialists, Store, _create_proposal, marketplace_handlers)
